@@ -222,6 +222,24 @@ func (s *Session) CaretOffset() int {
 	return n + min(len(s.Input[s.Cur]), len(s.Words[s.Cur]))
 }
 
+// LiveWPM is the running speed: correct words (plus their spaces) and the correct part of the current word.
+func (s *Session) LiveWPM(now time.Time) float64 {
+	el := s.Elapsed(now)
+	if el < time.Second {
+		return 0
+	}
+	chars := 0
+	for i := 0; i < s.Cur; i++ {
+		if s.WordCorrect(i) {
+			chars += len(s.Words[i]) + 1
+		}
+	}
+	if isPrefix(s.Input[s.Cur], s.Words[s.Cur]) {
+		chars += len(s.Input[s.Cur])
+	}
+	return float64(chars) / 5 / el.Minutes()
+}
+
 // Stats are Monkeytype-style results.
 type Stats struct {
 	WPM, Raw, Acc, Consistency        float64

@@ -17,6 +17,7 @@ type Config struct {
 	QuoteLength string  `toml:"quote_length"` // short, medium, long, thicc, all
 	Punctuation bool    `toml:"punctuation"`
 	Numbers     bool    `toml:"numbers"`
+	LiveWPM     bool    `toml:"live_wpm"`      // show the running WPM during a test
 	PacerFactor float64 `toml:"pacer_factor"`  // pace mode target = recent median × this
 	DrillWords  int     `toml:"drill_words"`   // words per train round
 	BurstSecs   int     `toml:"burst_seconds"` // pace mode burst length
@@ -25,7 +26,7 @@ type Config struct {
 
 func Default() Config {
 	return Config{
-		Theme: "dreamtheme", Mode: "time", Time: 30, Words: 50, QuoteLength: "all",
+		Theme: "dreamtheme", Mode: "time", Time: 30, Words: 50, QuoteLength: "all", LiveWPM: true,
 		PacerFactor: 1.07, DrillWords: 45, BurstSecs: 15, ControlSecs: 30,
 	}
 }

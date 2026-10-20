@@ -37,6 +37,8 @@ sanda themes           theme picker
 sanda history [n]      last n official tests as plain text
 ```
 
+Live WPM shows next to the timer while you type (toggle it under esc → options → live wpm, or `live_wpm` in the config).
+
 Keys: **tab** restart / next, **esc** menu, **ctrl+backspace** or **ctrl+w** delete word, **ctrl+c** quit.
 
 ## Files

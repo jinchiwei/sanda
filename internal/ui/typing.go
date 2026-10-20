@@ -166,6 +166,13 @@ func (m *Model) typingHeader(now time.Time) string {
 	default:
 		left = m.main(fmt.Sprintf("%d/%d", s.Cur, len(s.Words)))
 	}
+	if s.Started() && m.cfg.LiveWPM {
+		live := "–"
+		if w := s.LiveWPM(now); w > 0 {
+			live = fmt.Sprintf("%.0f", w)
+		}
+		left += m.bgSpaces(3) + m.text(live) + m.sub(" wpm")
+	}
 	if !s.Started() {
 		left = m.configLine()
 	}

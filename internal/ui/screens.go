@@ -65,6 +65,8 @@ func (m *Model) buildMenu() {
 			func(m *Model) tea.Cmd { m.cfg.Punctuation = !m.cfg.Punctuation; m.saveConfig(); return nil }},
 		menuItem{"options", "numbers", func(m *Model) bool { return m.cfg.Numbers },
 			func(m *Model) tea.Cmd { m.cfg.Numbers = !m.cfg.Numbers; m.saveConfig(); return nil }},
+		menuItem{"options", "live wpm", func(m *Model) bool { return m.cfg.LiveWPM },
+			func(m *Model) tea.Cmd { m.cfg.LiveWPM = !m.cfg.LiveWPM; m.saveConfig(); return nil }},
 		menuItem{"practice", "train · adaptive drills on your weak spots", nil,
 			func(m *Model) tea.Cmd { m.startTrain(); return nil }},
 		menuItem{"practice", "pace · overspeed bursts + clean control rounds", nil,

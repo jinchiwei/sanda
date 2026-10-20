@@ -101,3 +101,17 @@ func TestTimedSessionCountsPartialWord(t *testing.T) {
 		t.Fatalf("wpm=%v missed=%d", st.WPM, st.Missed)
 	}
 }
+
+func TestLiveWPM(t *testing.T) {
+	s := New([]string{"hello", "world", "again"})
+	t0 := time.Unix(0, 0)
+	typeAll(s, "hello wor", t0, 100*time.Millisecond)
+	// At 1.2 s: "hello " (6) + "wor" (3) = 9 correct chars → 9/5/0.02 min = 90 WPM.
+	if got := s.LiveWPM(t0.Add(1200 * time.Millisecond)); math.Abs(got-90) > 0.01 {
+		t.Fatalf("live wpm = %v, want 90", got)
+	}
+	s.Type('x', t0.Add(1300*time.Millisecond)) // a wrong letter drops the partial word
+	if got := s.LiveWPM(t0.Add(1500 * time.Millisecond)); math.Abs(got-48) > 0.01 {
+		t.Fatalf("live wpm after error = %v, want 48", got)
+	}
+}
