@@ -70,32 +70,39 @@ func (m *Model) block(lines []string) string {
 	return strings.Join(lines, "\n")
 }
 
-// logoLines renders the big 散打 with a diagonal gradient from the main colour to the hot accent,
-// or blank lines of the same size (so the layout doesn't jump when it hides).
-func (m *Model) logoLines(visible bool) []string {
+// logoLines renders the big 散打 from its pixel map, two pixel rows per text row: the left character in the
+// main colour, the right in the hot accent, the outline in the warm accent (themes without accents fall back).
+func (m *Model) logoLines() []string {
 	width := 0
-	for _, l := range logo {
-		width = max(width, len([]rune(l)))
+	for _, r := range logoPixels {
+		width = max(width, len(r))
 	}
-	out := make([]string, len(logo))
-	if !visible {
-		for i := range out {
-			out[i] = m.bgSpaces(width)
+	color := map[byte]string{'L': m.th.Main, 'R': m.hot(m.th.Main), 'O': m.warm(m.th.Sub)}
+	at := func(y, x int) byte {
+		if y < len(logoPixels) && x < len(logoPixels[y]) {
+			return logoPixels[y][x]
 		}
-		return out
+		return ' '
 	}
-	from, to := rgb(m.th.Main), rgb(m.hot(m.th.Main))
-	for y, l := range logo {
+	var out []string
+	for y := 0; y < len(logoPixels); y += 2 {
 		var sb strings.Builder
-		for x, r := range []rune(l) {
-			if r == ' ' {
+		for x := 0; x < width; x++ {
+			top, bot := at(y, x), at(y+1, x)
+			switch {
+			case top == ' ' && bot == ' ':
 				sb.WriteString(m.bgSpaces(1))
-				continue
+			case bot == ' ':
+				sb.WriteString(m.fg(color[top]).Render("▀"))
+			case top == ' ':
+				sb.WriteString(m.fg(color[bot]).Render("▄"))
+			case color[top] == color[bot]:
+				sb.WriteString(m.fg(color[top]).Render("█"))
+			default:
+				sb.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color(color[top])).Background(lipgloss.Color(color[bot])).Render("▀"))
 			}
-			t := (float64(x)/float64(width) + float64(y)/float64(len(logo))) / 2
-			sb.WriteString(m.fg(mix(from, to, t)).Render(string(r)))
 		}
-		out[y] = m.pad(sb.String(), width)
+		out = append(out, sb.String())
 	}
 	return out
 }

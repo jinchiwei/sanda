@@ -415,7 +415,36 @@ func (m *Model) View() string {
 		right := m.sub("sanda · "+m.th.Name+" · "+Version) + m.bgSpaces(2)
 		bottom = m.bgSpaces(m.w-lipgloss.Width(right)) + right
 	}
-	return m.place(m.w, m.h-1, body) + "\n" + bottom
+	h := m.h - 1
+	if m.screen == scrTyping {
+		return m.withLogo(body, h, !focus) + "\n" + bottom
+	}
+	return m.place(m.w, h, body) + "\n" + bottom
+}
+
+// withLogo keeps the typing block exactly centred and puts the big 散打 in the space above it
+// (hidden while typing, and skipped when it doesn't fit).
+func (m *Model) withLogo(body string, h int, show bool) string {
+	bh := lipgloss.Height(body)
+	top := (h - bh) / 2
+	logo := m.logoLines()
+	if !show || top < len(logo)+2 {
+		return m.place(m.w, h, body)
+	}
+	var lines []string
+	for _, l := range logo {
+		lines = append(lines, m.pad(l, lipgloss.Width(logo[0])))
+	}
+	upper := m.place(m.w, top, strings.Join(lines, "\n"))
+	lower := lipgloss.Place(m.w, h-top, lipgloss.Center, lipgloss.Top, body, m.whitespace()...)
+	return upper + "\n" + lower
+}
+
+func (m *Model) whitespace() []lipgloss.WhitespaceOption {
+	if m.th.BgHex() == "" {
+		return nil
+	}
+	return []lipgloss.WhitespaceOption{lipgloss.WithWhitespaceBackground(lipgloss.Color(m.th.Bg))}
 }
 
 // Version is shown in the corner; main sets it from the build.

@@ -84,15 +84,7 @@ func (m *Model) viewTyping() string {
 	if !s.Started() {
 		lang = m.center(m.sub("english"), tw)
 	}
-	var out []string
-	// Big 散打 above the test when there's room; hidden (space kept) while typing.
-	if m.h >= len(logo)+16 {
-		for _, l := range m.logoLines(!s.Started() || s.Finished()) {
-			out = append(out, m.center(l, tw))
-		}
-		out = append(out, m.bgSpaces(tw))
-	}
-	out = append(out, m.pad(m.typingHeader(now), tw), lang)
+	out := []string{m.pad(m.typingHeader(now), tw), lang}
 	out = append(out, lines...)
 	out = append(out, m.bgSpaces(tw), m.pad(m.typingFooter(), tw))
 	if m.status != "" {
