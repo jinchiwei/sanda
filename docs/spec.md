@@ -1,6 +1,6 @@
 # sanda (散打) — spec
 
-Status: **draft for review** (2026-10-20)
+Status: **M1–M4 implemented** (2026-10-20). See the milestone table for notes.
 
 A terminal typing trainer that measures exactly what slows you down and drills that, instead of only testing you.
 The name: 散打 is wushu free sparring; 打 is also the "da" in 打字 (typing).
@@ -160,14 +160,19 @@ A unit drops off the drill list once its median IKI is within baseline across N 
 | M3 | Train mode: adaptive drill generation, graduation | Drills target the top weaknesses |
 | M4 | Pace mode, spaced repetition, progress view | Plateau metric visible over weeks |
 
+### Implementation notes (2026-10-20)
+- All four milestones are built. Tested with unit tests (engine scoring, transitions, breakdown, model ranking, drill generation) and an end-to-end run in tmux: tests, quotes with source, menu, train with schedule updates, pace burst/control with the ghost, progress, and the theme picker.
+- The weakness model uses the last 90 days, and each transition's median uses its 60 most recent samples. Transitions with fewer than 6 samples are probed rather than ranked.
+- Abandoned tests (tab, esc or quit mid-test) are not saved.
+- Before any history exists, train drills the three most common English letter pairs as probes.
+
 ## 12. Not in scope (for now)
 
 Multiplayer, ghost replays, a web version, languages other than English.
 
 ## 13. Open questions
 
-- Should a test count toward stats if it's abandoned partway through?
-
 Decided:
+- Abandoned tests are not saved.
 - Train and Pace rounds are **kept separate** from the official WPM history. Their keystrokes still feed the weakness model.
 - dreamtheme: cursor turquoise. Untyped text is `sub` grey, typed text is `text` light grey.

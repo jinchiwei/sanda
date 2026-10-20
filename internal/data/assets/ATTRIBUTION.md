@@ -1,0 +1,14 @@
+# Third-party data
+
+These files come from [Monkeytype](https://github.com/monkeytypegame/monkeytype) (GPL-3.0),
+snapshot of commit `ea0b6f0c96b17c4b054920468e975275836cd0ee` (2026-10-20):
+
+| File | Monkeytype source |
+|---|---|
+| `quotes_english.json` | `frontend/static/quotes/english.json` |
+| `english_200.json` | `frontend/static/languages/english.json` |
+| `english_1k.json` | `frontend/static/languages/english_1k.json` |
+| `english_10k.json` | `frontend/static/languages/english_10k.json` |
+| `monkeytype_themes.json` | converted from `frontend/src/ts/constants/themes.ts` by `scripts/gen-themes.py` |
+
+Refresh with `scripts/update-monkeytype-data.sh`.
