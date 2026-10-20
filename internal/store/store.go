@@ -234,6 +234,29 @@ func (d *DB) Events(since time.Time) ([]TestEvents, error) {
 	return out, rows.Err()
 }
 
+// TestEventsFor loads one round's keystrokes.
+func (d *DB) TestEventsFor(id int64) ([]engine.Event, error) {
+	rows, err := d.db.Query(`SELECT t_us, kind, typed, expected, correct, first, word, pos
+		FROM events WHERE test_id = ? ORDER BY seq`, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []engine.Event
+	for rows.Next() {
+		var tus int64
+		var kind, typed, exp, correct, first, word, pos int
+		if err := rows.Scan(&tus, &kind, &typed, &exp, &correct, &first, &word, &pos); err != nil {
+			return nil, err
+		}
+		out = append(out, engine.Event{
+			T: time.Duration(tus) * time.Microsecond, Kind: engine.Kind(kind), Typed: rune(typed), Expected: rune(exp),
+			Correct: correct == 1, First: first == 1, Word: word, Pos: pos,
+		})
+	}
+	return out, rows.Err()
+}
+
 // Sched is a unit's spaced-repetition state.
 type Sched struct {
 	Unit     string

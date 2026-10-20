@@ -34,7 +34,7 @@ sanda train            adaptive drills
 sanda pace             overspeed + control rounds
 sanda progress         plateau gap, weak spots, trends
 sanda themes           theme picker
-sanda history [n]      last n official tests as plain text
+sanda history [n]      last n official tests as plain text (in the app: esc → history, enter reopens a result)
 sanda window [cmd]     same, in a new window of this terminal with a bigger font
 ```
 

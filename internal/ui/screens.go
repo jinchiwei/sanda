@@ -93,7 +93,8 @@ func (m *Model) buildMenu() {
 			func(m *Model) tea.Cmd { m.startTrain(); return nil }}}},
 		{"", []menuItem{{"pace · overspeed bursts + clean control rounds", nil,
 			func(m *Model) tea.Cmd { m.activity = ActTest; m.startPace(); return nil }}}},
-		{"app", []menuItem{{"progress", nil, func(m *Model) tea.Cmd { m.openProgress(scrMenu); return nil }}}},
+		{"app", []menuItem{{"history", nil, func(m *Model) tea.Cmd { m.openHistory(scrMenu); return nil }}}},
+		{"", []menuItem{{"progress", nil, func(m *Model) tea.Cmd { m.openProgress(scrMenu); return nil }}}},
 		{"", []menuItem{{"theme · " + m.cfg.Theme, nil, func(m *Model) tea.Cmd { m.openThemes(scrMenu); return nil }}}},
 		{"", []menuItem{{"quit", nil, func(m *Model) tea.Cmd { return tea.Quit }}}},
 	}

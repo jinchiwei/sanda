@@ -122,3 +122,18 @@ func TestSelectingAModeStartsThatTest(t *testing.T) {
 		t.Fatalf("choosing a quote length should start a quote test (screen %v, mode %s)", m.screen, m.cfg.Mode)
 	}
 }
+
+func TestHistoryOpensAndReturns(t *testing.T) {
+	m := newTestModel(t)
+	press(m, "esc")
+	goToRow(m, rowOf(t, m, "history"))
+	press(m, "enter")
+	if m.screen != scrHistory {
+		t.Fatal("enter on history should open it")
+	}
+	m.View()
+	press(m, "enter", "esc") // no tests: enter does nothing, esc returns
+	if m.screen != scrMenu {
+		t.Fatalf("esc in history should return to the menu, got %v", m.screen)
+	}
+}

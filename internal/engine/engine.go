@@ -339,8 +339,11 @@ func isPrefix(a, b []rune) bool {
 	return true
 }
 
-func (s *Session) perSecond() []Second {
-	secs := int(math.Ceil(s.duration.Seconds()))
+func (s *Session) perSecond() []Second { return PerSecond(s.Events, s.duration) }
+
+// PerSecond buckets keystrokes into seconds: cumulative WPM, raw speed and errors (also used for saved tests).
+func PerSecond(events []Event, duration time.Duration) []Second {
+	secs := int(math.Ceil(duration.Seconds()))
 	if secs < 1 {
 		return nil
 	}
@@ -350,11 +353,11 @@ func (s *Session) perSecond() []Second {
 	ei := 0
 	for sec := 0; sec < secs; sec++ {
 		end := time.Duration(sec+1) * time.Second
-		if end > s.duration {
-			end = s.duration
+		if end > duration {
+			end = duration
 		}
-		for ei < len(s.Events) && s.Events[ei].T < end {
-			e := s.Events[ei]
+		for ei < len(events) && events[ei].T < end {
+			e := events[ei]
 			if e.Kind == KindChar || e.Kind == KindSpace {
 				raw[sec]++
 				if e.Correct {

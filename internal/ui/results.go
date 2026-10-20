@@ -8,10 +8,57 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/jinchiwei/sanda/internal/analysis"
+	"github.com/jinchiwei/sanda/internal/data"
+	"github.com/jinchiwei/sanda/internal/engine"
 )
 
+// resultView is everything the results screen shows, for the test just finished or one from history.
+type resultView struct {
+	stats  engine.Stats
+	losses []analysis.Loss
+	quote  *data.Quote
+	label  string
+	notes  []string // already rendered lines: personal best, train outcome, pace verdict
+	footer string
+}
+
 func (m *Model) viewResult() string {
-	st := m.stats
+	rv := resultView{stats: m.stats, losses: m.losses, quote: m.quote, label: m.testLabel()}
+	tw := m.textWidth()
+	if m.activity == ActTest && m.pb {
+		if m.prevPB > 0 {
+			rv.notes = append(rv.notes, m.fg(m.warm(m.th.Caret)).Render(fmt.Sprintf("★ new personal best (was %.0f)", m.prevPB)))
+		} else {
+			rv.notes = append(rv.notes, m.sub("first result for this test type"))
+		}
+	}
+	var after []string
+	switch m.activity {
+	case ActTrain:
+		after = append(after, m.bgSpaces(1))
+		after = append(after, m.trainOutcome(tw)...)
+	case ActPace:
+		after = append(after, m.bgSpaces(1), m.main(m.paceNote))
+		next := "next: control round (no pacer, aim for 97%+ accuracy)"
+		if m.phase == phaseControl {
+			next = fmt.Sprintf("next: burst at %.0f wpm", m.target)
+		}
+		after = append(after, m.sub(next))
+	}
+	next := " next test   "
+	switch m.activity {
+	case ActTrain:
+		next = " next drill   "
+	case ActPace:
+		next = " next round   "
+	}
+	rv.footer = m.keycap("tab", m.warm(m.th.Text)) + m.sub(next) + m.keycap("esc", m.hot(m.th.Text)) + m.sub(" menu   ") + m.keycap("q", m.th.Text) + m.sub(" quit")
+	return m.renderResult(rv, after)
+}
+
+// renderResult draws a results screen; after goes between the chart/source and "what cost you".
+func (m *Model) renderResult(rv resultView, after []string) string {
+	st := rv.stats
 	tw := m.textWidth()
 	var out []string
 
@@ -28,50 +75,30 @@ func (m *Model) viewResult() string {
 	statC := func(label, v, hex string) string { return m.sub(label+" ") + m.fg(hex).Render(v) }
 	chars := m.text(fmt.Sprint(st.Correct)) + m.sub("/") + m.fg(m.th.Error).Render(fmt.Sprint(st.Incorrect)) + m.sub("/") +
 		m.fg(m.th.ErrorExtra).Render(fmt.Sprint(st.Extra)) + m.sub("/") + m.sub(fmt.Sprint(st.Missed))
-	secs := st.Duration.Seconds()
 	line := strings.Join([]string{
 		statC("raw", fmt.Sprintf("%.0f", st.Raw), m.warm(m.th.Text)),
 		statC("consistency", fmt.Sprintf("%.0f%%", st.Consistency), m.hot(m.th.Text)),
 		m.sub("characters ") + chars,
-		stat("time", fmt.Sprintf("%.0fs", secs)),
+		stat("time", fmt.Sprintf("%.0fs", st.Duration.Seconds())),
 	}, m.bgSpaces(3))
-	out = append(out, line)
-	out = append(out, m.sub(m.testLabel()))
-	if m.activity == ActTest && m.pb {
-		if m.prevPB > 0 {
-			out = append(out, m.fg(m.warm(m.th.Caret)).Render(fmt.Sprintf("★ new personal best (was %.0f)", m.prevPB)))
-		} else {
-			out = append(out, m.sub("first result for this test type"))
-		}
-	}
+	out = append(out, line, m.sub(rv.label))
+	out = append(out, rv.notes...)
 	out = append(out, m.bgSpaces(1))
 	out = append(out, m.chart(st.PerSecond, tw, 7)...)
 
 	// Quote source, Monkeytype style.
-	if m.quote != nil {
+	if rv.quote != nil {
 		out = append(out, m.bgSpaces(1), m.fg(m.hot(m.th.Sub)).Render("source"))
-		for _, l := range wrapText(m.quote.Source, tw) {
+		for _, l := range wrapText(rv.quote.Source, tw) {
 			out = append(out, m.text(l))
 		}
 	}
-
-	switch m.activity {
-	case ActTrain:
-		out = append(out, m.bgSpaces(1))
-		out = append(out, m.trainOutcome(tw)...)
-	case ActPace:
-		out = append(out, m.bgSpaces(1), m.main(m.paceNote))
-		next := "next: control round (no pacer, aim for 97%+ accuracy)"
-		if m.phase == phaseControl {
-			next = fmt.Sprintf("next: burst at %.0f wpm", m.target)
-		}
-		out = append(out, m.sub(next))
-	}
+	out = append(out, after...)
 
 	// What cost you: the top three estimated losses.
-	if len(m.losses) > 0 {
+	if len(rv.losses) > 0 {
 		out = append(out, m.bgSpaces(1), m.fg(m.hot(m.th.Sub)).Render("what cost you"))
-		for i, l := range m.losses {
+		for i, l := range rv.losses {
 			if i == 3 || l.Seconds < 0.15 {
 				break
 			}
@@ -79,15 +106,7 @@ func (m *Model) viewResult() string {
 		}
 	}
 
-	out = append(out, m.bgSpaces(1))
-	next := " next test   "
-	switch m.activity {
-	case ActTrain:
-		next = " next drill   "
-	case ActPace:
-		next = " next round   "
-	}
-	out = append(out, m.keycap("tab", m.warm(m.th.Text))+m.sub(next)+m.keycap("esc", m.hot(m.th.Text))+m.sub(" menu   ")+m.keycap("q", m.th.Text)+m.sub(" quit"))
+	out = append(out, m.bgSpaces(1), rv.footer)
 	if m.status != "" {
 		out = append(out, m.fg(m.th.Error).Render(m.status))
 	}

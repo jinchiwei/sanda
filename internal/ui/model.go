@@ -29,6 +29,7 @@ const (
 	scrMenu
 	scrThemes
 	scrProgress
+	scrHistory
 )
 
 // Activity is what the typing screen is for.
@@ -98,10 +99,14 @@ type Model struct {
 	themeFilter string
 	themeBefore string
 
-	progress  string
-	logoKey   string // theme the cached logo was rendered for
-	logoCache []string
-	progressW int // terminal width the progress screen was built for
+	progress   string
+	histTests  []store.Test
+	histIdx    int
+	histAll    bool
+	histDetail bool
+	logoKey    string // theme the cached logo was rendered for
+	logoCache  []string
+	progressW  int // terminal width the progress screen was built for
 }
 
 // New creates the app starting in the given activity ("progress" and "themes" open those screens).
@@ -254,6 +259,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.keyThemes(msg)
 		case scrProgress:
 			return m.keyProgress(msg)
+		case scrHistory:
+			return m.keyHistory(msg)
 		}
 	}
 	return m, nil
@@ -401,6 +408,8 @@ func (m *Model) View() string {
 		body = m.viewMenu()
 	case scrThemes:
 		body = m.viewThemes()
+	case scrHistory:
+		body = m.viewHistory()
 	case scrProgress:
 		if m.progressW != m.w {
 			m.progress, m.progressW = m.buildProgress(), m.w
