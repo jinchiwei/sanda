@@ -405,18 +405,17 @@ func (m *Model) View() string {
 		}
 		body = m.progress
 	}
-	// Monkeytype-style frame: logo top-left, theme and version bottom-right, hidden while typing (focus mode).
+	// Monkeytype-style footer: app, theme and version bottom-right, hidden while typing (focus mode).
 	focus := m.screen == scrTyping && m.sess.Started() && !m.sess.Finished()
 	if m.h < 8 {
 		return m.place(m.w, m.h, body)
 	}
-	top, bottom := m.bgSpaces(m.w), m.bgSpaces(m.w)
+	bottom := m.bgSpaces(m.w)
 	if !focus {
-		top = m.pad(m.bgSpaces(2)+m.main("sanda")+m.bgSpaces(1)+m.fg(m.hot(m.th.Main)).Render("散打"), m.w)
-		right := m.sub(m.th.Name+" · "+Version) + m.bgSpaces(2)
+		right := m.sub("sanda · "+m.th.Name+" · "+Version) + m.bgSpaces(2)
 		bottom = m.bgSpaces(m.w-lipgloss.Width(right)) + right
 	}
-	return top + "\n" + m.place(m.w, m.h-2, body) + "\n" + bottom
+	return m.place(m.w, m.h-1, body) + "\n" + bottom
 }
 
 // Version is shown in the corner; main sets it from the build.

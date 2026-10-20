@@ -70,6 +70,54 @@ func (m *Model) block(lines []string) string {
 	return strings.Join(lines, "\n")
 }
 
+// logoLines renders the big 散打 with a diagonal gradient from the main colour to the hot accent,
+// or blank lines of the same size (so the layout doesn't jump when it hides).
+func (m *Model) logoLines(visible bool) []string {
+	width := 0
+	for _, l := range logo {
+		width = max(width, len([]rune(l)))
+	}
+	out := make([]string, len(logo))
+	if !visible {
+		for i := range out {
+			out[i] = m.bgSpaces(width)
+		}
+		return out
+	}
+	from, to := rgb(m.th.Main), rgb(m.hot(m.th.Main))
+	for y, l := range logo {
+		var sb strings.Builder
+		for x, r := range []rune(l) {
+			if r == ' ' {
+				sb.WriteString(m.bgSpaces(1))
+				continue
+			}
+			t := (float64(x)/float64(width) + float64(y)/float64(len(logo))) / 2
+			sb.WriteString(m.fg(mix(from, to, t)).Render(string(r)))
+		}
+		out[y] = m.pad(sb.String(), width)
+	}
+	return out
+}
+
+func rgb(hex string) [3]float64 {
+	var c [3]float64
+	h := strings.TrimPrefix(hex, "#")
+	if len(h) != 6 {
+		return c
+	}
+	for i := 0; i < 3; i++ {
+		var v int
+		fmt.Sscanf(h[i*2:i*2+2], "%02x", &v)
+		c[i] = float64(v)
+	}
+	return c
+}
+
+func mix(a, b [3]float64, t float64) string {
+	return fmt.Sprintf("#%02x%02x%02x", int(a[0]+(b[0]-a[0])*t), int(a[1]+(b[1]-a[1])*t), int(a[2]+(b[2]-a[2])*t))
+}
+
 // 3×5 pixel digits, drawn two pixel rows per text row with half blocks.
 var font = map[rune][5]string{
 	'0': {"111", "101", "101", "101", "111"},
