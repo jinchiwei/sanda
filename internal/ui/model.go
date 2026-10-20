@@ -414,7 +414,7 @@ func (m *Model) View() string {
 	}
 	bottom := m.bgSpaces(m.w)
 	if !focus {
-		right := m.sub("sanda ") + m.fg(m.hot(m.th.Sub)).Render("散打") + m.sub(" · "+m.th.Name+" · "+Version) + m.bgSpaces(2)
+		right := m.sub("sanda ") + m.main("散") + m.fg(m.hot(m.th.Sub)).Render("打") + m.sub(" · "+m.th.Name+" · "+Version) + m.bgSpaces(2)
 		bottom = m.bgSpaces(m.w-lipgloss.Width(right)) + right
 	}
 	h := m.h - 1
