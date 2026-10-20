@@ -162,16 +162,16 @@ func (m *Model) typingHeader(now time.Time) string {
 	var left string
 	switch {
 	case s.TimeLimit > 0:
-		left = m.main(fmt.Sprintf("%d", int((s.TimeLimit-s.Elapsed(now)).Seconds()+0.999)))
+		left = m.fg(m.hot(m.th.Main)).Render(fmt.Sprintf("%d", int((s.TimeLimit-s.Elapsed(now)).Seconds()+0.999)))
 	default:
-		left = m.main(fmt.Sprintf("%d/%d", s.Cur, len(s.Words)))
+		left = m.fg(m.hot(m.th.Main)).Render(fmt.Sprintf("%d/%d", s.Cur, len(s.Words)))
 	}
 	if s.Started() && m.cfg.LiveWPM {
 		live := "–"
 		if w := s.LiveWPM(now); w > 0 {
 			live = fmt.Sprintf("%.0f", w)
 		}
-		left += m.bgSpaces(3) + m.fg(m.hot(m.th.Text)).Render(live) + m.sub(" wpm")
+		left += m.bgSpaces(3) + m.fg(m.th.Main).Render(live) + m.sub(" wpm")
 	}
 	if !s.Started() {
 		left = m.configLine()
