@@ -37,7 +37,15 @@ sanda themes           theme picker
 sanda history [n]      last n official tests as plain text
 ```
 
-Live WPM shows next to the timer while you type (toggle it under esc → options → live wpm, or `live_wpm` in the config).
+Options (esc → options, or in the config):
+
+| Option | Default | What it does |
+|---|---|---|
+| live wpm (`live_wpm`) | on | running WPM next to the timer |
+| free backspace (`free_backspace`) | on | backspace into any earlier word, not only wrong ones (Monkeytype's "freedom mode") |
+| terminal bg (`terminal_background`) | off | use your terminal's background with any theme (dreamtheme always does) |
+
+In the menu, **j/k** (or ↓/↑) move between rows and **h/l** (or ←/→) move within a row.
 
 Keys: **tab** restart / next, **esc** menu, **ctrl+backspace** or **ctrl+w** delete word, **ctrl+c** quit.
 
@@ -52,7 +60,7 @@ Keys: **tab** restart / next, **esc** menu, **ctrl+backspace** or **ctrl+w** del
 A custom theme uses Monkeytype's colour roles:
 
 ```toml
-bg = "#0a0a0a"         # background
+bg = "#0a0a0a"         # background, or "terminal" to use the terminal's own
 main = "#40E0D0"       # accent: stats, highlights
 caret = "#40E0D0"      # cursor
 text = "#c8c8d0"       # typed text

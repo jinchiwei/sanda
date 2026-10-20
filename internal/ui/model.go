@@ -87,8 +87,9 @@ type Model struct {
 	paceNote string
 
 	// menu
-	menuItems []menuItem
-	menuIdx   int
+	menuRows []menuRow
+	menuRow  int
+	menuCol  int
 
 	// themes
 	themeNames  []string
@@ -102,7 +103,8 @@ type Model struct {
 
 // New creates the app starting in the given activity ("progress" and "themes" open those screens).
 func New(cfg config.Config, db *store.DB, start string) *Model {
-	m := &Model{cfg: cfg, db: db, th: theme.Get(cfg.Theme), seed: uint64(time.Now().UnixNano())}
+	m := &Model{cfg: cfg, db: db, seed: uint64(time.Now().UnixNano())}
+	m.setTheme(cfg.Theme)
 	switch start {
 	case "train":
 		m.startTrain()
@@ -122,6 +124,14 @@ func New(cfg config.Config, db *store.DB, start string) *Model {
 
 func (m *Model) Init() tea.Cmd { return tick() }
 
+// setTheme loads a theme, honouring the terminal-background option.
+func (m *Model) setTheme(name string) {
+	m.th = theme.Get(name)
+	if m.cfg.TermBg {
+		m.th.Bg = theme.Terminal
+	}
+}
+
 func (m *Model) nextSeed() uint64 { m.seed++; return m.seed }
 
 // newTest starts an official Monkeytype-style test from the config.
@@ -133,6 +143,7 @@ func (m *Model) newTest() {
 	case "words":
 		m.words = m.gen.Words(m.cfg.Words)
 		m.sess = engine.New(m.words)
+		m.sess.FreeBackspace = m.cfg.FreeBack
 	case "quote":
 		qs := data.Quotes(data.QuoteLength(m.cfg.QuoteLength))
 		if len(qs) == 0 {
@@ -142,9 +153,11 @@ func (m *Model) newTest() {
 		m.quote = &q
 		m.words = textgen.SplitQuote(q.Text)
 		m.sess = engine.New(m.words)
+		m.sess.FreeBackspace = m.cfg.FreeBack
 	default:
 		m.words = m.gen.Words(100)
 		m.sess = engine.New(m.words)
+		m.sess.FreeBackspace = m.cfg.FreeBack
 		m.sess.TimeLimit = time.Duration(m.cfg.Time) * time.Second
 		m.sess.More = m.gen.Words
 	}
@@ -173,6 +186,7 @@ func (m *Model) startTrain() {
 	}
 	m.words = train.Drill(m.focus, m.cfg.DrillWords, m.nextSeed())
 	m.sess = engine.New(m.words)
+	m.sess.FreeBackspace = m.cfg.FreeBack
 	m.quote = nil
 	m.saved = false
 	m.screen = scrTyping
@@ -188,6 +202,7 @@ func (m *Model) startPace() {
 	m.gen = textgen.New(m.cfg.Punctuation, m.cfg.Numbers, m.nextSeed())
 	m.words = m.gen.Words(100)
 	m.sess = engine.New(m.words)
+	m.sess.FreeBackspace = m.cfg.FreeBack
 	m.sess.More = m.gen.Words
 	secs := m.cfg.BurstSecs
 	if m.phase == phaseControl {
@@ -388,6 +403,9 @@ func (m *Model) View() string {
 			m.progress, m.progressW = m.buildProgress(), m.w
 		}
 		body = m.progress
+	}
+	if m.th.BgHex() == "" {
+		return lipgloss.Place(m.w, m.h, lipgloss.Center, lipgloss.Center, body)
 	}
 	return lipgloss.Place(m.w, m.h, lipgloss.Center, lipgloss.Center, body,
 		lipgloss.WithWhitespaceBackground(lipgloss.Color(m.th.Bg)))

@@ -17,6 +17,7 @@ import (
 // Theme uses Monkeytype's colour roles:
 // bg background, main accent (stats, highlights), caret cursor, sub untyped text and secondary UI,
 // subAlt panels, text correctly typed text, error wrong characters, errorExtra extra characters.
+// bg = "terminal" draws no background at all, so the terminal's own background shows through.
 type Theme struct {
 	Name       string `json:"-" toml:"-"`
 	Bg         string `json:"bg" toml:"bg"`
@@ -34,7 +35,7 @@ type Theme struct {
 // Builtin themes made for sanda, on top of the Monkeytype presets.
 var builtin = map[string]Theme{
 	"dreamtheme": {
-		Bg: "#0a0a0a", Main: "#40E0D0", Caret: "#40E0D0", Sub: "#7a7a8c", SubAlt: "#16161d",
+		Bg: Terminal, Main: "#40E0D0", Caret: "#40E0D0", Sub: "#7a7a8c", SubAlt: "#16161d",
 		Text: "#c8c8d0", Error: "#FF1493", ErrorExtra: "#8A2BE2",
 		Accents: []string{"#F0C840", "#BA55D3", "#FF7F50"},
 	},
@@ -46,6 +47,9 @@ var builtin = map[string]Theme{
 }
 
 const Default = "dreamtheme"
+
+// Terminal as a bg value means "use the terminal's background".
+const Terminal = "terminal"
 
 var all map[string]Theme
 
@@ -104,7 +108,10 @@ func Get(name string) Theme {
 }
 
 func (t *Theme) normalize() {
-	for _, p := range []*string{&t.Bg, &t.Main, &t.Caret, &t.Sub, &t.SubAlt, &t.Text, &t.Error, &t.ErrorExtra} {
+	if t.Bg != Terminal {
+		t.Bg = hex6(t.Bg)
+	}
+	for _, p := range []*string{&t.Main, &t.Caret, &t.Sub, &t.SubAlt, &t.Text, &t.Error, &t.ErrorExtra} {
 		*p = hex6(*p)
 	}
 	for i := range t.Accents {
@@ -133,4 +140,18 @@ func (t Theme) Accent(i int) lipgloss.Color {
 	return lipgloss.Color(fallback[i%len(fallback)])
 }
 
-func (t Theme) C(hex string) lipgloss.Color { return lipgloss.Color(hex) }
+// BgHex is the background colour, or "" when the terminal's own background is used.
+func (t Theme) BgHex() string {
+	if t.Bg == Terminal {
+		return ""
+	}
+	return t.Bg
+}
+
+// OnCaret is the text colour for the character under the block caret.
+func (t Theme) OnCaret() string {
+	if t.Bg == Terminal {
+		return "#111111"
+	}
+	return t.Bg
+}

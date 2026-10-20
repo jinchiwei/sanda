@@ -10,9 +10,17 @@ import (
 	"github.com/jinchiwei/sanda/internal/engine"
 )
 
+// bgStyle sets a background unless hex is "" (terminal background).
+func bgStyle(st lipgloss.Style, hex string) lipgloss.Style {
+	if hex == "" {
+		return st
+	}
+	return st.Background(lipgloss.Color(hex))
+}
+
 // fg returns a style with the given foreground on the theme background (every cell must carry the background).
 func (m *Model) fg(hex string) lipgloss.Style {
-	return lipgloss.NewStyle().Foreground(lipgloss.Color(hex)).Background(lipgloss.Color(m.th.Bg))
+	return bgStyle(lipgloss.NewStyle().Foreground(lipgloss.Color(hex)), m.th.BgHex())
 }
 
 func (m *Model) sub(s string) string  { return m.fg(m.th.Sub).Render(s) }

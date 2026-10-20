@@ -17,16 +17,18 @@ type Config struct {
 	QuoteLength string  `toml:"quote_length"` // short, medium, long, thicc, all
 	Punctuation bool    `toml:"punctuation"`
 	Numbers     bool    `toml:"numbers"`
-	LiveWPM     bool    `toml:"live_wpm"`      // show the running WPM during a test
-	PacerFactor float64 `toml:"pacer_factor"`  // pace mode target = recent median × this
-	DrillWords  int     `toml:"drill_words"`   // words per train round
-	BurstSecs   int     `toml:"burst_seconds"` // pace mode burst length
+	LiveWPM     bool    `toml:"live_wpm"`            // show the running WPM during a test
+	FreeBack    bool    `toml:"free_backspace"`      // backspace into any earlier word, not only wrong ones
+	TermBg      bool    `toml:"terminal_background"` // ignore every theme's background and use the terminal's
+	PacerFactor float64 `toml:"pacer_factor"`        // pace mode target = recent median × this
+	DrillWords  int     `toml:"drill_words"`         // words per train round
+	BurstSecs   int     `toml:"burst_seconds"`       // pace mode burst length
 	ControlSecs int     `toml:"control_seconds"`
 }
 
 func Default() Config {
 	return Config{
-		Theme: "dreamtheme", Mode: "time", Time: 30, Words: 50, QuoteLength: "all", LiveWPM: true,
+		Theme: "dreamtheme", Mode: "time", Time: 30, Words: 50, QuoteLength: "all", LiveWPM: true, FreeBack: true,
 		PacerFactor: 1.07, DrillWords: 45, BurstSecs: 15, ControlSecs: 30,
 	}
 }

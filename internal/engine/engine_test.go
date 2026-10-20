@@ -33,7 +33,7 @@ func TestPerfectWordsSession(t *testing.T) {
 		t.Fatalf("duration = %v, want 1s", st.Duration)
 	}
 	// 10 letters + 1 space = 11 chars over 1 s → 11/5*60 = 132 WPM.
-	if math.Abs(st.WPM-132) > 0.01 || st.Acc != 100 || st.Correct != 10 || st.Missed != 0 {
+	if math.Abs(st.WPM-132) > 0.01 || math.Abs(st.Raw-132) > 0.01 || st.Acc != 100 || st.Correct != 10 || st.Missed != 0 {
 		t.Fatalf("stats = %+v", st)
 	}
 }
@@ -113,5 +113,23 @@ func TestLiveWPM(t *testing.T) {
 	s.Type('x', t0.Add(1300*time.Millisecond)) // a wrong letter drops the partial word
 	if got := s.LiveWPM(t0.Add(1500 * time.Millisecond)); math.Abs(got-48) > 0.01 {
 		t.Fatalf("live wpm after error = %v, want 48", got)
+	}
+}
+
+func TestFreeBackspaceIntoCorrectWord(t *testing.T) {
+	s := New([]string{"ab", "cd", "ef"})
+	s.FreeBackspace = true
+	t0 := time.Unix(0, 0)
+	typeAll(s, "ab cd ", t0, time.Millisecond)
+	s.Backspace(t0.Add(time.Second)) // into "cd"
+	s.Backspace(t0.Add(time.Second)) // delete "d"
+	s.Backspace(t0.Add(time.Second)) // delete "c"
+	s.Backspace(t0.Add(time.Second)) // into "ab"
+	if s.Cur != 0 || string(s.Input[0]) != "ab" {
+		t.Fatalf("free backspace should reach the first word, cur=%d", s.Cur)
+	}
+	s.DeleteWord(t0.Add(time.Second))
+	if len(s.Input[0]) != 0 {
+		t.Fatal("ctrl+backspace should clear the reopened word")
 	}
 }

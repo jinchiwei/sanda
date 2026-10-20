@@ -32,16 +32,19 @@ type Session struct {
 	Input     [][]rune
 	Cur       int
 	TimeLimit time.Duration // 0 = no limit
+	// FreeBackspace lets backspace step back into any earlier word, not only wrong ones (Monkeytype's freedom mode).
+	FreeBackspace bool
 	// More supplies extra words for unlimited (time) sessions.
 	More func(n int) []string
 
-	Events   []Event
-	start    time.Time
-	started  bool
-	finished bool
-	lastDone bool // the final word was completed (not cut off by the timer)
-	duration time.Duration
-	tried    map[[2]int]bool
+	Events    []Event
+	start     time.Time
+	started   bool
+	finished  bool
+	lastDone  bool // the final word was completed (not cut off by the timer)
+	lastSpace bool // …and submitted with a space rather than by typing its last letter
+	duration  time.Duration
+	tried     map[[2]int]bool
 }
 
 func New(words []string) *Session {
@@ -159,7 +162,7 @@ func (s *Session) Space(now time.Time) {
 	ok := string(in) == string(word)
 	s.log(now, Event{Kind: KindSpace, Typed: ' ', Expected: exp, Correct: ok, Word: s.Cur, Pos: len(word)})
 	if s.Cur == len(s.Words)-1 && s.More == nil {
-		s.lastDone = true
+		s.lastDone, s.lastSpace = true, true
 		s.finish(now)
 		return
 	}
@@ -168,7 +171,8 @@ func (s *Session) Space(now time.Time) {
 	s.ensureWords()
 }
 
-// Backspace deletes one character; on an empty word it steps back into the previous word only if that word was wrong.
+// Backspace deletes one character. On an empty word it steps back into the previous word if that word was wrong,
+// or always with FreeBackspace.
 func (s *Session) Backspace(now time.Time) {
 	if s.finished || !s.started {
 		return
@@ -178,7 +182,7 @@ func (s *Session) Backspace(now time.Time) {
 		s.log(now, Event{Kind: KindBackspace, Word: s.Cur, Pos: len(s.Input[s.Cur])})
 		return
 	}
-	if s.Cur > 0 && !s.WordCorrect(s.Cur-1) {
+	if s.canStepBack() {
 		s.Input = s.Input[:s.Cur]
 		s.Cur--
 		s.log(now, Event{Kind: KindBackspace, Word: s.Cur, Pos: len(s.Input[s.Cur])})
@@ -191,7 +195,7 @@ func (s *Session) DeleteWord(now time.Time) {
 		return
 	}
 	if len(s.Input[s.Cur]) == 0 {
-		if s.Cur > 0 && !s.WordCorrect(s.Cur-1) {
+		if s.canStepBack() {
 			s.Input = s.Input[:s.Cur]
 			s.Cur--
 		} else {
@@ -200,6 +204,10 @@ func (s *Session) DeleteWord(now time.Time) {
 	}
 	s.Input[s.Cur] = s.Input[s.Cur][:0]
 	s.log(now, Event{Kind: KindDeleteWord, Word: s.Cur})
+}
+
+func (s *Session) canStepBack() bool {
+	return s.Cur > 0 && (s.FreeBackspace || !s.WordCorrect(s.Cur-1))
 }
 
 // End stops the session early (used by pace rounds and when quitting a running test).
@@ -285,8 +293,10 @@ func (s *Session) Stats() Stats {
 		}
 		rawChars += len(in)
 		if submitted {
-			rawChars++ // the space
 			st.WordsTyped++
+			if i < last || s.lastSpace {
+				rawChars++ // the space actually typed after the word
+			}
 		}
 		switch {
 		case string(in) == string(w):

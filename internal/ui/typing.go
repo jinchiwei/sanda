@@ -100,7 +100,7 @@ func (m *Model) wordCells(wi, off, ghost int) []cell {
 	wrong := submitted && !s.WordCorrect(wi)
 	var cells []cell
 	for j, r := range word {
-		c := cell{r: r, fg: m.th.Sub, bg: m.th.Bg, under: wrong}
+		c := cell{r: r, fg: m.th.Sub, bg: m.th.BgHex(), under: wrong}
 		if j < len(in) {
 			if in[j] == r {
 				c.fg = m.th.Text
@@ -115,19 +115,19 @@ func (m *Model) wordCells(wi, off, ghost int) []cell {
 		cells = append(cells, c)
 	}
 	for j := len(word); j < len(in); j++ {
-		cells = append(cells, cell{r: in[j], fg: m.th.ErrorExtra, bg: m.th.Bg, under: wrong})
+		cells = append(cells, cell{r: in[j], fg: m.th.ErrorExtra, bg: m.th.BgHex(), under: wrong})
 	}
 	// Caret: a block in the caret colour on the next character to type.
 	if wi == s.Cur && !s.Finished() {
 		pos := len(in)
 		if pos < len(cells) {
-			cells[pos].bg, cells[pos].fg = m.th.Caret, m.th.Bg
+			cells[pos].bg, cells[pos].fg = m.th.Caret, m.th.OnCaret()
 		} else {
-			cells = append(cells, cell{r: ' ', fg: m.th.Bg, bg: m.th.Caret})
+			cells = append(cells, cell{r: ' ', fg: m.th.OnCaret(), bg: m.th.Caret})
 			return cells
 		}
 	}
-	sp := cell{r: ' ', fg: m.th.Sub, bg: m.th.Bg}
+	sp := cell{r: ' ', fg: m.th.Sub, bg: m.th.BgHex()}
 	if off+len(word) == ghost {
 		sp.bg = m.th.SubAlt
 	}
@@ -147,7 +147,7 @@ func (m *Model) renderCells(cells []cell, width int) string {
 			run = append(run, cells[j].r)
 			j++
 		}
-		st := lipgloss.NewStyle().Foreground(lipgloss.Color(cells[i].fg)).Background(lipgloss.Color(cells[i].bg))
+		st := bgStyle(lipgloss.NewStyle().Foreground(lipgloss.Color(cells[i].fg)), cells[i].bg)
 		if cells[i].under {
 			st = st.Underline(true)
 		}

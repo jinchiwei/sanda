@@ -17,11 +17,16 @@ import (
 
 // ---- menu ----
 
+// The menu is a grid: each row is a group of choices. j/k (or ↓/↑) move between rows, h/l (or ←/→) within a row.
 type menuItem struct {
-	section string
-	label   string
-	active  func(m *Model) bool
-	do      func(m *Model) tea.Cmd
+	label  string
+	active func(m *Model) bool
+	do     func(m *Model) tea.Cmd
+}
+
+type menuRow struct {
+	section string // shown only on the first row of a section
+	items   []menuItem
 }
 
 func (m *Model) setTest(mode string, apply func(c *config.Config)) func(*Model) tea.Cmd {
@@ -40,42 +45,59 @@ func (m *Model) saveConfig() {
 	}
 }
 
+func toggle(label string, field func(c *config.Config) *bool) menuItem {
+	return menuItem{label,
+		func(m *Model) bool { return *field(&m.cfg) },
+		func(m *Model) tea.Cmd { f := field(&m.cfg); *f = !*f; m.saveConfig(); return nil }}
+}
+
 func (m *Model) buildMenu() {
-	var items []menuItem
+	var timeRow, wordsRow, quoteRow []menuItem
 	for _, t := range []int{15, 30, 60, 120} {
 		t := t
-		items = append(items, menuItem{"time", fmt.Sprint(t),
+		timeRow = append(timeRow, menuItem{fmt.Sprint(t),
 			func(m *Model) bool { return m.cfg.Mode == "time" && m.cfg.Time == t },
 			m.setTest("time", func(c *config.Config) { c.Time = t })})
 	}
 	for _, w := range []int{10, 25, 50, 100} {
 		w := w
-		items = append(items, menuItem{"words", fmt.Sprint(w),
+		wordsRow = append(wordsRow, menuItem{fmt.Sprint(w),
 			func(m *Model) bool { return m.cfg.Mode == "words" && m.cfg.Words == w },
 			m.setTest("words", func(c *config.Config) { c.Words = w })})
 	}
 	for _, q := range []string{"all", "short", "medium", "long", "thicc"} {
 		q := q
-		items = append(items, menuItem{"quote", q,
+		quoteRow = append(quoteRow, menuItem{q,
 			func(m *Model) bool { return m.cfg.Mode == "quote" && m.cfg.QuoteLength == q },
 			m.setTest("quote", func(c *config.Config) { c.QuoteLength = q })})
 	}
-	items = append(items,
-		menuItem{"options", "punctuation", func(m *Model) bool { return m.cfg.Punctuation },
-			func(m *Model) tea.Cmd { m.cfg.Punctuation = !m.cfg.Punctuation; m.saveConfig(); return nil }},
-		menuItem{"options", "numbers", func(m *Model) bool { return m.cfg.Numbers },
-			func(m *Model) tea.Cmd { m.cfg.Numbers = !m.cfg.Numbers; m.saveConfig(); return nil }},
-		menuItem{"options", "live wpm", func(m *Model) bool { return m.cfg.LiveWPM },
-			func(m *Model) tea.Cmd { m.cfg.LiveWPM = !m.cfg.LiveWPM; m.saveConfig(); return nil }},
-		menuItem{"practice", "train · adaptive drills on your weak spots", nil,
-			func(m *Model) tea.Cmd { m.startTrain(); return nil }},
-		menuItem{"practice", "pace · overspeed bursts + clean control rounds", nil,
-			func(m *Model) tea.Cmd { m.activity = ActTest; m.startPace(); return nil }},
-		menuItem{"app", "progress", nil, func(m *Model) tea.Cmd { m.openProgress(scrMenu); return nil }},
-		menuItem{"app", "theme · " + m.cfg.Theme, nil, func(m *Model) tea.Cmd { m.openThemes(scrMenu); return nil }},
-		menuItem{"app", "quit", nil, func(m *Model) tea.Cmd { return tea.Quit }},
-	)
-	m.menuItems = items
+	m.menuRows = []menuRow{
+		{"time", timeRow},
+		{"words", wordsRow},
+		{"quote", quoteRow},
+		{"options", []menuItem{
+			toggle("punctuation", func(c *config.Config) *bool { return &c.Punctuation }),
+			toggle("numbers", func(c *config.Config) *bool { return &c.Numbers }),
+			toggle("live wpm", func(c *config.Config) *bool { return &c.LiveWPM }),
+			toggle("free backspace", func(c *config.Config) *bool { return &c.FreeBack }),
+			{"terminal bg", func(m *Model) bool { return m.cfg.TermBg },
+				func(m *Model) tea.Cmd {
+					m.cfg.TermBg = !m.cfg.TermBg
+					m.saveConfig()
+					m.setTheme(m.cfg.Theme)
+					return nil
+				}},
+		}},
+		{"practice", []menuItem{{"train · adaptive drills on your weak spots", nil,
+			func(m *Model) tea.Cmd { m.startTrain(); return nil }}}},
+		{"", []menuItem{{"pace · overspeed bursts + clean control rounds", nil,
+			func(m *Model) tea.Cmd { m.activity = ActTest; m.startPace(); return nil }}}},
+		{"app", []menuItem{{"progress", nil, func(m *Model) tea.Cmd { m.openProgress(scrMenu); return nil }}}},
+		{"", []menuItem{{"theme · " + m.cfg.Theme, nil, func(m *Model) tea.Cmd { m.openThemes(scrMenu); return nil }}}},
+		{"", []menuItem{{"quit", nil, func(m *Model) tea.Cmd { return tea.Quit }}}},
+	}
+	m.menuRow = min(m.menuRow, len(m.menuRows)-1)
+	m.menuCol = min(m.menuCol, len(m.menuRows[m.menuRow].items)-1)
 }
 
 func (m *Model) openMenu(from screen) {
@@ -85,13 +107,47 @@ func (m *Model) openMenu(from screen) {
 }
 
 func (m *Model) keyMenu(k tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if k.Type == tea.KeyRunes && len(k.Runes) > 1 { // fast key repeats can arrive as one event
+		var cmd tea.Cmd
+		for _, r := range k.Runes {
+			_, c := m.keyMenu(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+			if c != nil {
+				cmd = c
+			}
+			if m.screen != scrMenu {
+				break
+			}
+		}
+		return m, cmd
+	}
+	rows := len(m.menuRows)
+	clampCol := func() { m.menuCol = min(m.menuCol, len(m.menuRows[m.menuRow].items)-1) }
 	switch k.String() {
-	case "up", "k", "left", "h", "shift+tab":
-		m.menuIdx = (m.menuIdx - 1 + len(m.menuItems)) % len(m.menuItems)
-	case "down", "j", "right", "l", "tab":
-		m.menuIdx = (m.menuIdx + 1) % len(m.menuItems)
+	case "up", "k":
+		m.menuRow = (m.menuRow - 1 + rows) % rows
+		clampCol()
+	case "down", "j":
+		m.menuRow = (m.menuRow + 1) % rows
+		clampCol()
+	case "left", "h":
+		m.menuCol = max(m.menuCol-1, 0)
+	case "right", "l":
+		m.menuCol = min(m.menuCol+1, len(m.menuRows[m.menuRow].items)-1)
+	case "tab": // walk every item in order
+		if m.menuCol+1 < len(m.menuRows[m.menuRow].items) {
+			m.menuCol++
+		} else {
+			m.menuRow, m.menuCol = (m.menuRow+1)%rows, 0
+		}
+	case "shift+tab":
+		if m.menuCol > 0 {
+			m.menuCol--
+		} else {
+			m.menuRow = (m.menuRow - 1 + rows) % rows
+			m.menuCol = len(m.menuRows[m.menuRow].items) - 1
+		}
 	case "enter", " ":
-		cmd := m.menuItems[m.menuIdx].do(m)
+		cmd := m.menuRows[m.menuRow].items[m.menuCol].do(m)
 		if m.screen == scrMenu {
 			m.buildMenu()
 		}
@@ -109,38 +165,21 @@ func (m *Model) keyMenu(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m *Model) viewMenu() string {
 	out := []string{m.main("sanda 散打"), m.bgSpaces(1)}
-	section := ""
-	var row string
-	flush := func() {
-		if row != "" {
-			out = append(out, row)
-			row = ""
+	for r, row := range m.menuRows {
+		line := m.sub(fmt.Sprintf("%-9s", row.section))
+		for c, it := range row.items {
+			st := m.fg(m.th.Text)
+			if it.active != nil && it.active(m) {
+				st = m.fg(m.th.Main)
+			}
+			if r == m.menuRow && c == m.menuCol {
+				st = st.Background(lipgloss.Color(m.th.SubAlt)).Foreground(lipgloss.Color(m.th.Caret))
+			}
+			line += st.Render(" "+it.label+" ") + m.bgSpaces(1)
 		}
+		out = append(out, line)
 	}
-	for i, it := range m.menuItems {
-		if it.section != section {
-			flush()
-			section = it.section
-			row = m.sub(fmt.Sprintf("%-9s", section))
-		} else if it.section == "practice" || it.section == "app" {
-			flush()
-			row = m.bgSpaces(9)
-		}
-		label := it.label
-		var st lipgloss.Style
-		switch {
-		case it.active != nil && it.active(m):
-			st = m.fg(m.th.Main)
-		default:
-			st = m.fg(m.th.Text)
-		}
-		if i == m.menuIdx {
-			st = st.Background(lipgloss.Color(m.th.SubAlt)).Foreground(lipgloss.Color(m.th.Caret))
-		}
-		row += st.Render(" "+label+" ") + m.bgSpaces(1)
-	}
-	flush()
-	out = append(out, m.bgSpaces(1), m.sub("↑↓ move · enter select · esc back"))
+	out = append(out, m.bgSpaces(1), m.sub("j/k ↓↑ rows · h/l ←→ within a row · enter select · esc back"))
 	if m.status != "" {
 		out = append(out, m.fg(m.th.Error).Render(m.status))
 	}
@@ -193,7 +232,7 @@ func (m *Model) keyThemes(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.closeThemes()
 		return m, nil
 	case "esc":
-		m.th = theme.Get(m.themeBefore)
+		m.setTheme(m.themeBefore)
 		m.closeThemes()
 		return m, nil
 	case "backspace":
@@ -210,7 +249,7 @@ func (m *Model) keyThemes(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	list = m.filteredThemes()
 	if len(list) > 0 {
 		m.themeIdx = min(m.themeIdx, len(list)-1)
-		m.th = theme.Get(list[m.themeIdx]) // live preview
+		m.setTheme(list[m.themeIdx]) // live preview
 	}
 	return m, nil
 }
@@ -231,7 +270,11 @@ func (m *Model) viewThemes() string {
 	for i := start; i < end; i++ {
 		t := theme.Get(list[i])
 		swatch := ""
-		for _, c := range []string{t.Bg, t.Main, t.Caret, t.Text, t.Sub, t.Error} {
+		for _, c := range []string{t.BgHex(), t.Main, t.Caret, t.Text, t.Sub, t.Error} {
+			if c == "" {
+				swatch += m.sub("··") // terminal background
+				continue
+			}
 			swatch += lipgloss.NewStyle().Background(lipgloss.Color(c)).Render("  ")
 		}
 		name := fmt.Sprintf(" %-24s", list[i])
@@ -247,7 +290,7 @@ func (m *Model) viewThemes() string {
 	}
 	out = append(out, m.bgSpaces(1), m.sub(fmt.Sprintf("%d themes · ↑↓ preview · enter keep · esc cancel", len(list))))
 	sample := []string{m.bgSpaces(1),
-		m.text("the quick ") + m.fg(m.th.Error).Render("x") + m.text("rown ") + m.fg(m.th.Bg).Background(lipgloss.Color(m.th.Caret)).Render("f") + m.sub("ox jumps over"),
+		m.text("the quick ") + m.fg(m.th.Error).Render("x") + m.text("rown ") + m.fg(m.th.OnCaret()).Background(lipgloss.Color(m.th.Caret)).Render("f") + m.sub("ox jumps over"),
 	}
 	out = append(out, sample...)
 	return m.block(out)
