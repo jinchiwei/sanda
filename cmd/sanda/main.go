@@ -117,6 +117,7 @@ func main() {
 		history(db, fs.Args())
 		return
 	}
+	ui.Version = version
 	if _, err := tea.NewProgram(ui.New(cfg, db, cmd), tea.WithAltScreen()).Run(); err != nil {
 		fail(err)
 	}

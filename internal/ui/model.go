@@ -405,11 +405,39 @@ func (m *Model) View() string {
 		}
 		body = m.progress
 	}
-	if m.th.BgHex() == "" {
-		return lipgloss.Place(m.w, m.h, lipgloss.Center, lipgloss.Center, body)
+	// Monkeytype-style frame: logo top-left, theme and version bottom-right, hidden while typing (focus mode).
+	focus := m.screen == scrTyping && m.sess.Started() && !m.sess.Finished()
+	if m.h < 8 {
+		return m.place(m.w, m.h, body)
 	}
-	return lipgloss.Place(m.w, m.h, lipgloss.Center, lipgloss.Center, body,
+	top, bottom := m.bgSpaces(m.w), m.bgSpaces(m.w)
+	if !focus {
+		top = m.pad(m.bgSpaces(2)+m.main("sanda")+m.bgSpaces(1)+m.fg(m.hot(m.th.Main)).Render("散打"), m.w)
+		right := m.sub(m.th.Name+" · "+Version) + m.bgSpaces(2)
+		bottom = m.bgSpaces(m.w-lipgloss.Width(right)) + right
+	}
+	return top + "\n" + m.place(m.w, m.h-2, body) + "\n" + bottom
+}
+
+// Version is shown in the corner; main sets it from the build.
+var Version = "dev"
+
+// place centres a block in w×h, filling with the theme background unless it uses the terminal's.
+func (m *Model) place(w, h int, body string) string {
+	if m.th.BgHex() == "" {
+		return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, body)
+	}
+	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, body,
 		lipgloss.WithWhitespaceBackground(lipgloss.Color(m.th.Bg)))
+}
+
+// center centres a rendered line within width w.
+func (m *Model) center(s string, w int) string {
+	gap := w - lipgloss.Width(s)
+	if gap <= 0 {
+		return s
+	}
+	return m.bgSpaces(gap/2) + s + m.bgSpaces(gap-gap/2)
 }
 
 // textWidth is the width of the typing area.

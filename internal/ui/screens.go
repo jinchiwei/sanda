@@ -165,7 +165,7 @@ func (m *Model) keyMenu(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) viewMenu() string {
-	out := []string{m.main("sanda ") + m.fg(m.hot(m.th.Main)).Render("散打"), m.bgSpaces(1)}
+	out := []string{m.main("menu"), m.bgSpaces(1)}
 	for r, row := range m.menuRows {
 		line := m.fg(m.hot(m.th.Sub)).Render(fmt.Sprintf("%-9s", row.section))
 		for c, it := range row.items {

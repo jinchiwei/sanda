@@ -79,7 +79,12 @@ func (m *Model) viewTyping() string {
 		lines = append(lines, m.bgSpaces(tw))
 	}
 
-	out := []string{m.pad(m.typingHeader(now), tw), m.bgSpaces(tw)}
+	// The language sits above the words before the test starts, like Monkeytype.
+	lang := m.bgSpaces(tw)
+	if !s.Started() {
+		lang = m.center(m.sub("english"), tw)
+	}
+	out := []string{m.pad(m.typingHeader(now), tw), lang}
 	out = append(out, lines...)
 	out = append(out, m.bgSpaces(tw), m.pad(m.typingFooter(), tw))
 	if m.status != "" {
