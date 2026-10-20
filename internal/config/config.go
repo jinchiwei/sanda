@@ -20,6 +20,7 @@ type Config struct {
 	LiveWPM        bool    `toml:"live_wpm"`            // show the running WPM during a test
 	FreeBack       bool    `toml:"free_backspace"`      // backspace into any earlier word, not only wrong ones
 	TermBg         bool    `toml:"terminal_background"` // ignore every theme's background and use the terminal's
+	KeepLogo       bool    `toml:"keep_logo"`           // keep the 散打 logo on screen while typing
 	Window         bool    `toml:"window"`              // always open in a new terminal window (like sanda window)
 	WindowFontSize float64 `toml:"window_font_size"`    // font size for that window; 0 = auto
 	WindowFont     string  `toml:"window_font"`         // font family for that window; empty = the terminal's
@@ -31,7 +32,7 @@ type Config struct {
 
 func Default() Config {
 	return Config{
-		Theme: "dreamtheme", Mode: "time", Time: 30, Words: 50, QuoteLength: "all", LiveWPM: true, FreeBack: true,
+		Theme: "dreamtheme", Mode: "time", Time: 30, Words: 50, QuoteLength: "all", LiveWPM: true, FreeBack: true, KeepLogo: true,
 		PacerFactor: 1.07, DrillWords: 45, BurstSecs: 15, ControlSecs: 30,
 	}
 }

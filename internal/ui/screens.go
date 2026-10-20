@@ -80,6 +80,7 @@ func (m *Model) buildMenu() {
 			toggle("numbers", func(c *config.Config) *bool { return &c.Numbers }),
 			toggle("live wpm", func(c *config.Config) *bool { return &c.LiveWPM }),
 			toggle("free backspace", func(c *config.Config) *bool { return &c.FreeBack }),
+			toggle("keep logo", func(c *config.Config) *bool { return &c.KeepLogo }),
 			{"terminal bg", func(m *Model) bool { return m.cfg.TermBg },
 				func(m *Model) tea.Cmd {
 					m.cfg.TermBg = !m.cfg.TermBg
