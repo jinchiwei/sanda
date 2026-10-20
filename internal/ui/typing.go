@@ -171,7 +171,7 @@ func (m *Model) typingHeader(now time.Time) string {
 		if w := s.LiveWPM(now); w > 0 {
 			live = fmt.Sprintf("%.0f", w)
 		}
-		left += m.bgSpaces(3) + m.fg(m.warm(m.th.Text)).Render(live) + m.sub(" wpm")
+		left += m.bgSpaces(3) + m.fg(m.hot(m.th.Text)).Render(live) + m.sub(" wpm")
 	}
 	if !s.Started() {
 		left = m.configLine()

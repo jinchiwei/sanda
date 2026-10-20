@@ -28,7 +28,7 @@ type Theme struct {
 	Text       string `json:"text" toml:"text"`
 	Error      string `json:"error" toml:"error"`
 	ErrorExtra string `json:"errorExtra" toml:"errorExtra"`
-	// Accents are optional decorative colours: [0] warm (highlights, live wpm, raw line), [1] hot (labels, accuracy).
+	// Accents are optional decorative colours: [0] warm (accuracy, raw line, highlights), [1] hot (wpm, labels).
 	// Themes without them (all Monkeytype presets) fall back to their own roles and stay as designed.
 	Accents []string `json:"accents,omitempty" toml:"accents"`
 }

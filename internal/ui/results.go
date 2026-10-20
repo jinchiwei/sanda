@@ -16,7 +16,7 @@ func (m *Model) viewResult() string {
 	var out []string
 
 	// Headline: big wpm and accuracy, like Monkeytype's left column.
-	wpm := m.big(fmt.Sprintf("%.0f", st.WPM), m.th.Main)
+	wpm := m.big(fmt.Sprintf("%.0f", st.WPM), m.hot(m.th.Main))
 	acc := m.big(fmt.Sprintf("%.0f%%", st.Acc), m.warm(m.th.Main))
 	out = append(out, m.fg(m.hot(m.th.Sub)).Render("wpm")+m.bgSpaces(lipgloss.Width(wpm[0])+3)+m.fg(m.hot(m.th.Sub)).Render("acc"))
 	for i := range wpm {
