@@ -18,6 +18,26 @@ func bgStyle(st lipgloss.Style, hex string) lipgloss.Style {
 	return st.Background(lipgloss.Color(hex))
 }
 
+// warm and hot are a theme's decorative accents (dreamtheme: amber and deeppink), or fallback if it has none.
+func (m *Model) warm(fallback string) string {
+	if len(m.th.Accents) > 0 {
+		return m.th.Accents[0]
+	}
+	return fallback
+}
+
+func (m *Model) hot(fallback string) string {
+	if len(m.th.Accents) > 1 {
+		return m.th.Accents[1]
+	}
+	return fallback
+}
+
+// keycap renders a key hint like " tab " on the panel colour.
+func (m *Model) keycap(s, fgHex string) string {
+	return m.fg(fgHex).Background(lipgloss.Color(m.th.SubAlt)).Render(" " + s + " ")
+}
+
 // fg returns a style with the given foreground on the theme background (every cell must carry the background).
 func (m *Model) fg(hex string) lipgloss.Style {
 	return bgStyle(lipgloss.NewStyle().Foreground(lipgloss.Color(hex)), m.th.BgHex())
@@ -161,7 +181,7 @@ func (m *Model) chart(ps []engine.Second, width, height int) []string {
 			case 2:
 				line += m.main(c)
 			case 1:
-				line += m.sub(c)
+				line += m.fg(m.warm(m.th.Sub)).Render(c)
 			default:
 				line += m.bgSpaces(1)
 			}

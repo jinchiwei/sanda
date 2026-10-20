@@ -165,9 +165,9 @@ func (m *Model) keyMenu(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) viewMenu() string {
-	out := []string{m.main("sanda 散打"), m.bgSpaces(1)}
+	out := []string{m.main("sanda ") + m.fg(m.hot(m.th.Main)).Render("散打"), m.bgSpaces(1)}
 	for r, row := range m.menuRows {
-		line := m.sub(fmt.Sprintf("%-9s", row.section))
+		line := m.fg(m.hot(m.th.Sub)).Render(fmt.Sprintf("%-9s", row.section))
 		for c, it := range row.items {
 			st := m.fg(m.th.Text)
 			if it.active != nil && it.active(m) {
@@ -340,7 +340,7 @@ func (m *Model) buildProgress() string {
 		return m.block([]string{m.fg(m.th.Error).Render(err.Error())})
 	}
 	// The plateau metric: quote speed vs short word/time speed, per week.
-	out = append(out, m.sub("the gap · median wpm per week (word/time tests vs quotes)"))
+	out = append(out, m.fg(m.hot(m.th.Sub)).Render("the gap · median wpm per week (word/time tests vs quotes)"))
 	out = append(out, m.sub(fmt.Sprintf("%-12s %8s %8s %8s %6s", "week of", "words", "quotes", "gap", "tests")))
 	type wk struct {
 		words, quotes []float64
@@ -388,7 +388,7 @@ func (m *Model) buildProgress() string {
 		out = append(out, m.sub("no keystroke data yet"))
 		return m.block(out)
 	}
-	out = append(out, m.sub(fmt.Sprintf("transition types · your median key-to-key time is %dms (last 90 days, %d samples)", md.Baseline.Milliseconds(), md.Samples)))
+	out = append(out, m.fg(m.hot(m.th.Sub)).Render(fmt.Sprintf("transition types · your median key-to-key time is %dms (last 90 days, %d samples)", md.Baseline.Milliseconds(), md.Samples)))
 	for _, c := range md.Classes {
 		diff := float64(c.Median-md.Baseline) / float64(md.Baseline) * 100
 		col := m.th.Text
@@ -399,7 +399,7 @@ func (m *Model) buildProgress() string {
 	}
 
 	sched, _ := m.db.Schedule()
-	out = append(out, m.bgSpaces(1), m.sub("top weak spots · estimated time lost per 1000 characters of typical text"))
+	out = append(out, m.bgSpaces(1), m.fg(m.hot(m.th.Sub)).Render("top weak spots · estimated time lost per 1000 characters of typical text"))
 	out = append(out, m.sub(fmt.Sprintf("  %-6s %8s %6s %6s %7s  %-14s %s", "pair", "median", "err", "seen", "cost", "daily (↓ good)", "review")))
 	now := time.Now()
 	for i, u := range md.Ranked {
@@ -418,7 +418,7 @@ func (m *Model) buildProgress() string {
 			rev = "in " + days(s.Due.Sub(now))
 		}
 		row := fmt.Sprintf("  %-6s %6dms %5.0f%% %6d %6.2fs  ", analysis.Show(u.Unit), u.Median.Milliseconds(), u.ErrRate*100, u.Count, u.Cost)
-		out = append(out, m.text(row)+m.fg(m.th.Main).Render(fmt.Sprintf("%-14s", spark(daily)))+m.sub(" "+rev))
+		out = append(out, m.text(row)+m.fg(m.warm(m.th.Main)).Render(fmt.Sprintf("%-14s", spark(daily)))+m.sub(" "+rev))
 	}
 	grad := 0
 	for _, s := range sched {

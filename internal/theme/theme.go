@@ -28,7 +28,8 @@ type Theme struct {
 	Text       string `json:"text" toml:"text"`
 	Error      string `json:"error" toml:"error"`
 	ErrorExtra string `json:"errorExtra" toml:"errorExtra"`
-	// Accents are optional extra colours for charts and analysis; they fall back to main/caret/error.
+	// Accents are optional decorative colours: [0] warm (highlights, live wpm, raw line), [1] hot (labels, accuracy).
+	// Themes without them (all Monkeytype presets) fall back to their own roles and stay as designed.
 	Accents []string `json:"accents,omitempty" toml:"accents"`
 }
 
@@ -37,12 +38,12 @@ var builtin = map[string]Theme{
 	"dreamtheme": {
 		Bg: Terminal, Main: "#40E0D0", Caret: "#40E0D0", Sub: "#7a7a8c", SubAlt: "#16161d",
 		Text: "#c8c8d0", Error: "#FF1493", ErrorExtra: "#8A2BE2",
-		Accents: []string{"#F0C840", "#BA55D3", "#FF7F50"},
+		Accents: []string{"#F0C840", "#FF1493", "#BA55D3", "#FF7F50"}, // amber, deeppink, orchid, coral
 	},
 	"andromeda": {
 		Bg: "#23262E", Main: "#00e8c6", Caret: "#FFE66D", Sub: "#746f77", SubAlt: "#2b2f38",
 		Text: "#D5CED9", Error: "#ee5d43", ErrorExtra: "#ff00aa",
-		Accents: []string{"#c74ded", "#7cb7ff", "#96E072"},
+		Accents: []string{"#FFE66D", "#ff00aa", "#c74ded", "#7cb7ff"},
 	},
 }
 

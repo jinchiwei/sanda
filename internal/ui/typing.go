@@ -110,7 +110,7 @@ func (m *Model) wordCells(wi, off, ghost int) []cell {
 		}
 		if off+j == ghost {
 			c.bg = m.th.SubAlt
-			c.fg = m.th.Main
+			c.fg = m.warm(m.th.Main)
 		}
 		cells = append(cells, c)
 	}
@@ -171,7 +171,7 @@ func (m *Model) typingHeader(now time.Time) string {
 		if w := s.LiveWPM(now); w > 0 {
 			live = fmt.Sprintf("%.0f", w)
 		}
-		left += m.bgSpaces(3) + m.text(live) + m.sub(" wpm")
+		left += m.bgSpaces(3) + m.fg(m.warm(m.th.Text)).Render(live) + m.sub(" wpm")
 	}
 	if !s.Started() {
 		left = m.configLine()
@@ -186,10 +186,10 @@ func (m *Model) typingHeader(now time.Time) string {
 			}
 			units = append(units, u)
 		}
-		left += m.sub("   train · ") + m.fg(m.th.Main).Render(strings.Join(units, "  "))
+		left += m.fg(m.hot(m.th.Sub)).Render("   train · ") + m.fg(m.warm(m.th.Main)).Render(strings.Join(units, "  "))
 	case ActPace:
 		if m.phase == phaseBurst {
-			left += m.sub(fmt.Sprintf("   burst · pacer %.0f wpm", m.target))
+			left += m.fg(m.hot(m.th.Sub)).Render("   burst · ") + m.sub("pacer ") + m.fg(m.warm(m.th.Main)).Render(fmt.Sprintf("%.0f", m.target)) + m.sub(" wpm")
 			if s.Started() {
 				mine := float64(s.CaretOffset()) / 5 / s.Elapsed(now).Minutes()
 				if s.Elapsed(now) > time.Second {
@@ -202,7 +202,7 @@ func (m *Model) typingHeader(now time.Time) string {
 				}
 			}
 		} else {
-			left += m.sub("   control · type clean, no pacer")
+			left += m.fg(m.hot(m.th.Sub)).Render("   control · ") + m.sub("type clean, no pacer")
 		}
 	}
 	return left
@@ -212,12 +212,6 @@ func (m *Model) typingHeader(now time.Time) string {
 func (m *Model) configLine() string {
 	if m.activity != ActTest {
 		return ""
-	}
-	on := func(b bool, s string) string {
-		if b {
-			return m.main(s)
-		}
-		return m.sub(s)
 	}
 	var mode string
 	switch m.cfg.Mode {
@@ -229,12 +223,16 @@ func (m *Model) configLine() string {
 		mode = "quote " + m.cfg.QuoteLength
 	}
 	sep := m.sub(" · ")
-	return on(m.cfg.Punctuation, "@ punctuation") + sep + on(m.cfg.Numbers, "# numbers") + sep + m.main(mode)
+	punct, nums := m.sub("@ punctuation"), m.sub("# numbers")
+	if m.cfg.Punctuation {
+		punct = m.fg(m.warm(m.th.Main)).Render("@ punctuation")
+	}
+	if m.cfg.Numbers {
+		nums = m.fg(m.hot(m.th.Main)).Render("# numbers")
+	}
+	return punct + sep + nums + sep + m.main(mode)
 }
 
 func (m *Model) typingFooter() string {
-	k := func(s string) string {
-		return m.fg(m.th.Text).Background(lipgloss.Color(m.th.SubAlt)).Render(" " + s + " ")
-	}
-	return k("tab") + m.sub(" restart   ") + k("esc") + m.sub(" menu")
+	return m.keycap("tab", m.warm(m.th.Text)) + m.sub(" restart   ") + m.keycap("esc", m.hot(m.th.Text)) + m.sub(" menu")
 }

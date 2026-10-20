@@ -17,26 +17,29 @@ func (m *Model) viewResult() string {
 
 	// Headline: big wpm and accuracy, like Monkeytype's left column.
 	wpm := m.big(fmt.Sprintf("%.0f", st.WPM), m.th.Main)
-	acc := m.big(fmt.Sprintf("%.0f%%", st.Acc), m.th.Main)
-	out = append(out, m.sub("wpm")+m.bgSpaces(lipgloss.Width(wpm[0])+3)+m.sub("acc"))
+	acc := m.big(fmt.Sprintf("%.0f%%", st.Acc), m.warm(m.th.Main))
+	out = append(out, m.fg(m.hot(m.th.Sub)).Render("wpm")+m.bgSpaces(lipgloss.Width(wpm[0])+3)+m.fg(m.hot(m.th.Sub)).Render("acc"))
 	for i := range wpm {
 		out = append(out, wpm[i]+m.bgSpaces(6)+acc[i])
 	}
 	out = append(out, m.bgSpaces(1))
 
 	stat := func(label, v string) string { return m.sub(label+" ") + m.text(v) }
+	statC := func(label, v, hex string) string { return m.sub(label+" ") + m.fg(hex).Render(v) }
+	chars := m.text(fmt.Sprint(st.Correct)) + m.sub("/") + m.fg(m.th.Error).Render(fmt.Sprint(st.Incorrect)) + m.sub("/") +
+		m.fg(m.th.ErrorExtra).Render(fmt.Sprint(st.Extra)) + m.sub("/") + m.sub(fmt.Sprint(st.Missed))
 	secs := st.Duration.Seconds()
 	line := strings.Join([]string{
-		stat("raw", fmt.Sprintf("%.0f", st.Raw)),
-		stat("consistency", fmt.Sprintf("%.0f%%", st.Consistency)),
-		stat("characters", fmt.Sprintf("%d/%d/%d/%d", st.Correct, st.Incorrect, st.Extra, st.Missed)),
+		statC("raw", fmt.Sprintf("%.0f", st.Raw), m.warm(m.th.Text)),
+		statC("consistency", fmt.Sprintf("%.0f%%", st.Consistency), m.hot(m.th.Text)),
+		m.sub("characters ") + chars,
 		stat("time", fmt.Sprintf("%.0fs", secs)),
 	}, m.bgSpaces(3))
 	out = append(out, line)
 	out = append(out, m.sub(m.testLabel()))
 	if m.activity == ActTest && m.pb {
 		if m.prevPB > 0 {
-			out = append(out, m.fg(m.th.Caret).Render(fmt.Sprintf("★ new personal best (was %.0f)", m.prevPB)))
+			out = append(out, m.fg(m.warm(m.th.Caret)).Render(fmt.Sprintf("★ new personal best (was %.0f)", m.prevPB)))
 		} else {
 			out = append(out, m.sub("first result for this test type"))
 		}
@@ -46,7 +49,7 @@ func (m *Model) viewResult() string {
 
 	// Quote source, Monkeytype style.
 	if m.quote != nil {
-		out = append(out, m.bgSpaces(1), m.sub("source"))
+		out = append(out, m.bgSpaces(1), m.fg(m.hot(m.th.Sub)).Render("source"))
 		for _, l := range wrapText(m.quote.Source, tw) {
 			out = append(out, m.text(l))
 		}
@@ -67,19 +70,16 @@ func (m *Model) viewResult() string {
 
 	// What cost you: the top three estimated losses.
 	if len(m.losses) > 0 {
-		out = append(out, m.bgSpaces(1), m.sub("what cost you"))
+		out = append(out, m.bgSpaces(1), m.fg(m.hot(m.th.Sub)).Render("what cost you"))
 		for i, l := range m.losses {
 			if i == 3 || l.Seconds < 0.15 {
 				break
 			}
-			out = append(out, m.fg(m.th.Error).Render(fmt.Sprintf("−%.1fs", l.Seconds))+m.bgSpaces(2)+m.text(l.Label))
+			out = append(out, m.fg(m.warm(m.th.Error)).Render(fmt.Sprintf("−%.1fs", l.Seconds))+m.bgSpaces(2)+m.text(l.Label))
 		}
 	}
 
 	out = append(out, m.bgSpaces(1))
-	k := func(s string) string {
-		return m.fg(m.th.Text).Background(lipgloss.Color(m.th.SubAlt)).Render(" " + s + " ")
-	}
 	next := " next test   "
 	switch m.activity {
 	case ActTrain:
@@ -87,7 +87,7 @@ func (m *Model) viewResult() string {
 	case ActPace:
 		next = " next round   "
 	}
-	out = append(out, k("tab")+m.sub(next)+k("esc")+m.sub(" menu   ")+k("q")+m.sub(" quit"))
+	out = append(out, m.keycap("tab", m.warm(m.th.Text))+m.sub(next)+m.keycap("esc", m.hot(m.th.Text))+m.sub(" menu   ")+m.keycap("q", m.th.Text)+m.sub(" quit"))
 	if m.status != "" {
 		out = append(out, m.fg(m.th.Error).Render(m.status))
 	}
