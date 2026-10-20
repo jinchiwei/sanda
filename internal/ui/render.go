@@ -70,14 +70,42 @@ func (m *Model) block(lines []string) string {
 	return strings.Join(lines, "\n")
 }
 
-// logoLines renders the big 散打 from its pixel map, two pixel rows per text row: the left character in the
-// main colour, the right in the hot accent, the outline in the warm accent (themes without accents fall back).
+// logoLines renders the big 散打 from its brush-textured pixel map, two pixel rows per text row. Each pixel
+// mixes its character's colour (left: main, right: hot accent) toward the warm accent by its 0-9 level.
+// Themes without accents get the main colour washed toward their sub colour.
 func (m *Model) logoLines() []string {
+	key := m.th.Name + m.th.Bg
+	if m.logoKey == key {
+		return m.logoCache
+	}
 	width := 0
 	for _, r := range logoPixels {
 		width = max(width, len(r))
 	}
-	color := map[byte]string{'L': m.th.Main, 'R': m.hot(m.th.Main), 'O': m.warm(m.th.Sub)}
+	left, right, warm := rgb(m.th.Main), rgb(m.hot(m.th.Main)), rgb(m.warm(m.th.Sub))
+	white := [3]float64{255, 255, 255}
+	gold := mix(warm, white, 0.25)
+	if len(m.th.Accents) > 4 {
+		gold = m.th.Accents[4]
+	}
+	// Levels 6-9 are warm shades: orange-amber, amber, gold, pale gold.
+	shades := map[byte]string{6: mix(warm, [3]float64{225, 110, 10}, 0.5), 7: mix(warm, warm, 0), 8: gold, 9: mix(rgb(gold), white, 0.45)}
+	color := func(c byte) string {
+		var lvl byte
+		var base [3]float64
+		switch {
+		case c >= 'a' && c <= 'j':
+			lvl, base = c-'a', left
+		case c >= 'A' && c <= 'J':
+			lvl, base = c-'A', right
+		default:
+			return ""
+		}
+		if sh, ok := shades[lvl]; ok {
+			return sh
+		}
+		return mix(base, warm, float64(lvl)/9)
+	}
 	at := func(y, x int) byte {
 		if y < len(logoPixels) && x < len(logoPixels[y]) {
 			return logoPixels[y][x]
@@ -88,22 +116,23 @@ func (m *Model) logoLines() []string {
 	for y := 0; y < len(logoPixels); y += 2 {
 		var sb strings.Builder
 		for x := 0; x < width; x++ {
-			top, bot := at(y, x), at(y+1, x)
+			top, bot := color(at(y, x)), color(at(y+1, x))
 			switch {
-			case top == ' ' && bot == ' ':
+			case top == "" && bot == "":
 				sb.WriteString(m.bgSpaces(1))
-			case bot == ' ':
-				sb.WriteString(m.fg(color[top]).Render("▀"))
-			case top == ' ':
-				sb.WriteString(m.fg(color[bot]).Render("▄"))
-			case color[top] == color[bot]:
-				sb.WriteString(m.fg(color[top]).Render("█"))
+			case bot == "":
+				sb.WriteString(m.fg(top).Render("▀"))
+			case top == "":
+				sb.WriteString(m.fg(bot).Render("▄"))
+			case top == bot:
+				sb.WriteString(m.fg(top).Render("█"))
 			default:
-				sb.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color(color[top])).Background(lipgloss.Color(color[bot])).Render("▀"))
+				sb.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color(top)).Background(lipgloss.Color(bot)).Render("▀"))
 			}
 		}
 		out = append(out, sb.String())
 	}
+	m.logoKey, m.logoCache = key, out
 	return out
 }
 

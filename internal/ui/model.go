@@ -99,6 +99,8 @@ type Model struct {
 	themeBefore string
 
 	progress  string
+	logoKey   string // theme the cached logo was rendered for
+	logoCache []string
 	progressW int // terminal width the progress screen was built for
 }
 
