@@ -429,8 +429,22 @@ func (m *Model) View() string {
 func (m *Model) withLogo(body string, h int, show bool) string {
 	bh := lipgloss.Height(body)
 	top := (h - bh) / 2
-	logo := m.logoLines()
-	if !show || top < len(logo)+2 {
+	if !show {
+		return m.place(m.w, h, body)
+	}
+	// The largest logo that fits above the test (big, then small), or none.
+	var logo []string
+	for _, px := range [][]string{logoPixels, logoPixelsSmall} {
+		rows, cols := (len(px)+1)/2, 0
+		for _, r := range px {
+			cols = max(cols, len(r))
+		}
+		if top >= rows+2 && m.w >= cols+4 {
+			logo = m.logoLines(px)
+			break
+		}
+	}
+	if logo == nil {
 		return m.place(m.w, h, body)
 	}
 	var lines []string

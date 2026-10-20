@@ -10,20 +10,23 @@ import (
 )
 
 type Config struct {
-	Theme       string  `toml:"theme"`
-	Mode        string  `toml:"mode"` // time, words or quote
-	Time        int     `toml:"time"`
-	Words       int     `toml:"words"`
-	QuoteLength string  `toml:"quote_length"` // short, medium, long, thicc, all
-	Punctuation bool    `toml:"punctuation"`
-	Numbers     bool    `toml:"numbers"`
-	LiveWPM     bool    `toml:"live_wpm"`            // show the running WPM during a test
-	FreeBack    bool    `toml:"free_backspace"`      // backspace into any earlier word, not only wrong ones
-	TermBg      bool    `toml:"terminal_background"` // ignore every theme's background and use the terminal's
-	PacerFactor float64 `toml:"pacer_factor"`        // pace mode target = recent median × this
-	DrillWords  int     `toml:"drill_words"`         // words per train round
-	BurstSecs   int     `toml:"burst_seconds"`       // pace mode burst length
-	ControlSecs int     `toml:"control_seconds"`
+	Theme          string  `toml:"theme"`
+	Mode           string  `toml:"mode"` // time, words or quote
+	Time           int     `toml:"time"`
+	Words          int     `toml:"words"`
+	QuoteLength    string  `toml:"quote_length"` // short, medium, long, thicc, all
+	Punctuation    bool    `toml:"punctuation"`
+	Numbers        bool    `toml:"numbers"`
+	LiveWPM        bool    `toml:"live_wpm"`            // show the running WPM during a test
+	FreeBack       bool    `toml:"free_backspace"`      // backspace into any earlier word, not only wrong ones
+	TermBg         bool    `toml:"terminal_background"` // ignore every theme's background and use the terminal's
+	Window         bool    `toml:"window"`              // always open in a new terminal window (like sanda window)
+	WindowFontSize float64 `toml:"window_font_size"`    // font size for that window; 0 = auto
+	WindowFont     string  `toml:"window_font"`         // font family for that window; empty = the terminal's
+	PacerFactor    float64 `toml:"pacer_factor"`        // pace mode target = recent median × this
+	DrillWords     int     `toml:"drill_words"`         // words per train round
+	BurstSecs      int     `toml:"burst_seconds"`       // pace mode burst length
+	ControlSecs    int     `toml:"control_seconds"`
 }
 
 func Default() Config {

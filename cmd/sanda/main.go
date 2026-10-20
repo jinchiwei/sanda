@@ -12,6 +12,7 @@ import (
 
 	"github.com/jinchiwei/sanda/internal/config"
 	"github.com/jinchiwei/sanda/internal/data"
+	"github.com/jinchiwei/sanda/internal/launch"
 	"github.com/jinchiwei/sanda/internal/store"
 	"github.com/jinchiwei/sanda/internal/theme"
 	"github.com/jinchiwei/sanda/internal/ui"
@@ -28,6 +29,8 @@ usage:
   sanda progress         your plateau gap and weak spots over time
   sanda themes           pick a theme (live preview)
   sanda history [n]      print your last n official tests (default 20)
+  sanda window [cmd]     open sanda (or a command, e.g. sanda window train) in a new window of
+                         this terminal with its own font size; quitting closes it
 
 flags (saved as your new defaults):
   -t N        time test, N seconds (15, 30, 60, 120)
@@ -55,6 +58,10 @@ func main() {
 
 	args := os.Args[1:]
 	cmd := ""
+	wantWindow := false
+	if len(args) > 0 && args[0] == "window" {
+		wantWindow, args = true, args[1:]
+	}
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 		cmd, args = args[0], args[1:]
 	}
@@ -105,6 +112,23 @@ func main() {
 	if changed {
 		if err := config.Save(cfg); err != nil {
 			fail(err)
+		}
+	}
+
+	// Open a separate window with its own font size if asked (sanda window, or window = true in the config).
+	// Flags were already saved above, so the new window only needs the command.
+	if (wantWindow || cfg.Window) && cmd != "history" && os.Getenv(launch.InWindowEnv) == "" {
+		var childArgs []string
+		if cmd != "" {
+			childArgs = []string{cmd}
+		}
+		name, err := launch.Open(cfg.WindowFontSize, cfg.WindowFont, childArgs)
+		if err == nil {
+			fmt.Println("sanda: opened in a new " + name + " window")
+			return
+		}
+		if wantWindow {
+			fmt.Fprintln(os.Stderr, "sanda: running here instead:", err)
 		}
 	}
 

@@ -35,6 +35,23 @@ sanda pace             overspeed + control rounds
 sanda progress         plateau gap, weak spots, trends
 sanda themes           theme picker
 sanda history [n]      last n official tests as plain text
+sanda window [cmd]     same, in a new window of this terminal with a bigger font
+```
+
+### Bigger text: `sanda window`
+
+A terminal program can't change its own font size, so `sanda window` opens a new window of the terminal you're in, with its own font size, running only sanda. Quitting sanda closes it. Supported: **Ghostty, kitty, Alacritty, WezTerm, foot**. Anywhere else (and on macOS for now) it just runs in place.
+
+| Setting | Default | |
+|---|---|---|
+| `window` | `false` | make plain `sanda` always open a window |
+| `window_font_size` | `0` (auto) | auto scales your current font by how much room the layout has, up to 2× |
+| `window_font` | terminal's | font family for that window, e.g. `"Geist Mono"` |
+
+The window's app id / class is `io.github.jinchiwei.sanda`, for window-manager rules. On Hyprland, for example:
+
+```lua
+o.window("^io\\.github\\.jinchiwei\\.sanda$", { float = true, center = true, size = { "(monitor_w*0.9)", "(monitor_h*0.9)" } })
 ```
 
 Options (esc → options, or in the config):

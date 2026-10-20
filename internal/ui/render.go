@@ -73,13 +73,13 @@ func (m *Model) block(lines []string) string {
 // logoLines renders the big 散打 from its brush-textured pixel map, two pixel rows per text row. Each pixel
 // mixes its character's colour (left: main, right: hot accent) toward the warm accent by its 0-9 level.
 // Themes without accents get the main colour washed toward their sub colour.
-func (m *Model) logoLines() []string {
-	key := m.th.Name + m.th.Bg
+func (m *Model) logoLines(pixels []string) []string {
+	key := m.th.Name + m.th.Bg + fmt.Sprint(len(pixels))
 	if m.logoKey == key {
 		return m.logoCache
 	}
 	width := 0
-	for _, r := range logoPixels {
+	for _, r := range pixels {
 		width = max(width, len(r))
 	}
 	left, right, warm := rgb(m.th.Main), rgb(m.hot(m.th.Main)), rgb(m.warm(m.th.Sub))
@@ -107,13 +107,13 @@ func (m *Model) logoLines() []string {
 		return mix(base, warm, float64(lvl)/9)
 	}
 	at := func(y, x int) byte {
-		if y < len(logoPixels) && x < len(logoPixels[y]) {
-			return logoPixels[y][x]
+		if y < len(pixels) && x < len(pixels[y]) {
+			return pixels[y][x]
 		}
 		return ' '
 	}
 	var out []string
-	for y := 0; y < len(logoPixels); y += 2 {
+	for y := 0; y < len(pixels); y += 2 {
 		var sb strings.Builder
 		for x := 0; x < width; x++ {
 			top, bot := color(at(y, x)), color(at(y+1, x))
