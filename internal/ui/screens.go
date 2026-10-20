@@ -101,7 +101,7 @@ func (m *Model) buildMenu() {
 }
 
 func (m *Model) openMenu(from screen) {
-	m.back = from
+	m.menuBack = from
 	m.buildMenu()
 	m.screen = scrMenu
 }
@@ -153,8 +153,9 @@ func (m *Model) keyMenu(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, cmd
 	case "esc":
-		m.screen = m.back
-		if m.screen == scrTyping && m.sess.Finished() {
+		m.screen = m.menuBack
+		// A test left mid-way kept its clock running, so start a fresh one.
+		if m.screen == scrTyping && m.sess.Started() {
 			m.restart()
 		}
 	case "q":
@@ -189,7 +190,7 @@ func (m *Model) viewMenu() string {
 // ---- themes ----
 
 func (m *Model) openThemes(from screen) {
-	m.back = from
+	m.subBack = from
 	m.themeBefore = m.cfg.Theme
 	m.themeFilter = ""
 	m.themeNames = theme.Names()
@@ -255,7 +256,7 @@ func (m *Model) keyThemes(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) closeThemes() {
-	m.screen = m.back
+	m.screen = m.subBack
 	if m.screen == scrMenu {
 		m.buildMenu()
 	}
@@ -299,7 +300,7 @@ func (m *Model) viewThemes() string {
 // ---- progress ----
 
 func (m *Model) openProgress(from screen) {
-	m.back = from
+	m.subBack = from
 	m.progressW = 0 // rebuilt on the next View, once the terminal size is known
 	m.screen = scrProgress
 }
@@ -307,7 +308,7 @@ func (m *Model) openProgress(from screen) {
 func (m *Model) keyProgress(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch k.String() {
 	case "esc", "enter":
-		m.screen = m.back
+		m.screen = m.subBack
 		if m.screen == scrMenu {
 			m.buildMenu()
 		}

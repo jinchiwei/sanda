@@ -60,7 +60,8 @@ type Model struct {
 	w, h int
 
 	screen   screen
-	back     screen // where Esc returns from menu/themes/progress
+	menuBack screen // where esc in the menu returns to (typing or results)
+	subBack  screen // where the theme picker and progress return to (menu, typing or results)
 	activity Activity
 
 	sess   *engine.Session
