@@ -108,19 +108,19 @@ A unit drops off the drill list once its median IKI is within baseline across N 
 
 - The theme format matches Monkeytype's colour schema: `bg`, `main`, `caret`, `sub`, `subAlt`, `text`, `error`, `errorExtra`, `colorfulError`, `colorfulErrorExtra`.
 - **Presets:** Monkeytype's theme list, about 188 themes, imported. Plus:
-  - **dreamtheme** (draft mapping):
+  - **dreamtheme**:
 
-    | key | colour |
-    |---|---|
-    | bg | `#0a0a0a` |
-    | main | `#40E0D0` turquoise |
-    | caret | `#F0C840` amber |
-    | text | `#c8c8d0` |
-    | sub | `#7a7a8c` |
-    | subAlt | `#16161d` |
-    | error | `#FF1493` deeppink |
-    | errorExtra | `#8A2BE2` blueviolet |
-    | accents | `#BA55D3` mediumorchid, `#FF7F50` coral |
+    | key | colour | used for (Monkeytype meaning) |
+    |---|---|---|
+    | bg | `#0a0a0a` | background |
+    | main | `#40E0D0` turquoise | accent: stats, highlights, active selection |
+    | caret | `#40E0D0` turquoise | cursor |
+    | text | `#c8c8d0` | correctly typed text |
+    | sub | `#7a7a8c` | not-yet-typed text, secondary UI |
+    | subAlt | `#16161d` | panels / key-hint backgrounds |
+    | error | `#FF1493` deeppink | wrong character |
+    | errorExtra | `#8A2BE2` blueviolet | extra characters past the word |
+    | accents | `#F0C840` amber, `#BA55D3` mediumorchid, `#FF7F50` coral | spare, e.g. chart lines and "what cost you" |
 
   - **andromeda**:
 
@@ -167,5 +167,7 @@ Multiplayer, ghost replays, a web version, languages other than English.
 ## 13. Open questions
 
 - Should a test count toward stats if it's abandoned partway through?
-- Do training rounds affect the "official" WPM history, or are they kept separate? (Proposal: separate.)
-- Is the dreamtheme mapping above right?
+
+Decided:
+- Train and Pace rounds are **kept separate** from the official WPM history. Their keystrokes still feed the weakness model.
+- dreamtheme: cursor turquoise. Untyped text is `sub` grey, typed text is `text` light grey.
