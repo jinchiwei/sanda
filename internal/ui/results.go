@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/jinchiwei/sanda/internal/analysis"
 	"github.com/jinchiwei/sanda/internal/data"
 	"github.com/jinchiwei/sanda/internal/engine"
+	"github.com/jinchiwei/sanda/internal/store"
 )
 
 // resultView is everything the results screen shows, for the test just finished or one from history.
@@ -31,6 +33,9 @@ func (m *Model) viewResult() string {
 		} else {
 			rv.notes = append(rv.notes, m.sub("first result for this test type"))
 		}
+	}
+	if m.activity == ActTest && m.quote != nil {
+		rv.notes = append(rv.notes, m.quoteRecordLine(m.quoteRec, m.stats.WPM, len(m.quoteRec)+1, true))
 	}
 	var after []string
 	switch m.activity {
@@ -111,6 +116,29 @@ func (m *Model) renderResult(rv resultView, after []string) string {
 		out = append(out, m.fg(m.th.Error).Render(m.status))
 	}
 	return m.block(out)
+}
+
+// quoteRecordLine summarises your record on one quote. earlier are the official attempts before this one;
+// attempt is this attempt's number; live marks a result that was just typed (vs one reopened from history).
+func (m *Model) quoteRecordLine(earlier []store.Test, wpm float64, attempt int, live bool) string {
+	best := 0.0
+	for _, t := range earlier {
+		best = math.Max(best, t.WPM)
+	}
+	label := m.sub("this quote  ")
+	switch {
+	case len(earlier) == 0:
+		return label + m.fg(m.th.Typed).Render("first attempt")
+	case wpm > best:
+		return label + m.sub(fmt.Sprintf("attempt %d · ", attempt)) +
+			m.fg(m.th.Caret).Render(fmt.Sprintf("★ new best on this quote (was %.0f)", best))
+	}
+	verb := "best"
+	if !live {
+		verb = "best before this"
+	}
+	return label + m.sub(fmt.Sprintf("attempt %d · %s ", attempt, verb)) + m.fg(m.th.Typed).Render(fmt.Sprintf("%.0f", best)) +
+		m.sub(fmt.Sprintf(" (%+.0f)", wpm-best))
 }
 
 func (m *Model) testLabel() string {

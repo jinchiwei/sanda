@@ -183,6 +183,25 @@ func (d *DB) Tests(since time.Time, kinds ...string) ([]Test, error) {
 	return out, rows.Err()
 }
 
+// QuoteAttempts returns every official test of one quote, oldest first (retakes included).
+func (d *DB) QuoteAttempts(quoteID int) ([]Test, error) {
+	rows, err := d.db.Query(`SELECT `+testCols+` FROM tests WHERE kind = ? AND mode = 'quote' AND quote_id = ?
+		ORDER BY started_at`, KindOfficial, quoteID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Test
+	for rows.Next() {
+		t, err := scanTest(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, t)
+	}
+	return out, rows.Err()
+}
+
 // BestWPM is the personal best for the same official test settings (0 if none).
 func (d *DB) BestWPM(mode, value string, punct, numbers bool) float64 {
 	var best sql.NullFloat64

@@ -144,6 +144,17 @@ func (m *Model) historyDetail(t store.Test) string {
 		if q, ok := data.QuoteByID(t.QuoteID); ok {
 			rv.quote = &q
 		}
+		// The quote's record as it stood when this attempt was typed.
+		if all, err := m.db.QuoteAttempts(t.QuoteID); err == nil && t.Kind == store.KindOfficial {
+			var earlier []store.Test
+			for _, a := range all {
+				if a.ID == t.ID {
+					break
+				}
+				earlier = append(earlier, a)
+			}
+			rv.notes = append(rv.notes, m.quoteRecordLine(earlier, t.WPM, len(earlier)+1, false))
+		}
 	}
 	return m.renderResult(rv, nil)
 }

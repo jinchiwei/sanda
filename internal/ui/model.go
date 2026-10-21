@@ -77,12 +77,13 @@ type Model struct {
 	status string
 
 	// results
-	stats   engine.Stats
-	losses  []analysis.Loss
-	pb      bool
-	shownAt time.Time // when results appeared; keys are ignored briefly so a trailing keystroke can't skip them
-	prevPB  float64
-	outcome []train.Outcome
+	stats    engine.Stats
+	losses   []analysis.Loss
+	pb       bool
+	shownAt  time.Time // when results appeared; keys are ignored briefly so a trailing keystroke can't skip them
+	prevPB   float64
+	quoteRec []store.Test // earlier official attempts at the current quote, before this one was saved
+	outcome  []train.Outcome
 
 	// train / pace
 	model    analysis.Model
@@ -342,6 +343,10 @@ func (m *Model) checkDone() {
 		}
 		m.prevPB = m.db.BestWPM(t.Mode, t.ModeValue, t.Punctuation, t.Numbers)
 		m.pb = m.stats.WPM > m.prevPB
+		m.quoteRec = nil
+		if t.QuoteID > 0 {
+			m.quoteRec, _ = m.db.QuoteAttempts(t.QuoteID)
+		}
 	case ActTrain:
 		t.Kind, t.Mode, t.ModeValue = store.KindTrain, "drill", strconv.Itoa(len(m.words))
 		var units []string
@@ -406,6 +411,7 @@ func (m *Model) retake() {
 	m.outcome = nil
 	m.pb = false
 	m.prevPB = 0
+	m.quoteRec = nil
 	m.paceNote = ""
 	m.status = ""
 	m.screen = scrTyping

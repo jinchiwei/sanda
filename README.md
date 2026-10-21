@@ -83,6 +83,7 @@ In the menu, **j/k** (or ↓/↑) move between rows and **h/l** (or ←/→) mov
 Keys: **tab** restart / next, **esc** menu, **ctrl+backspace** or **ctrl+w** delete word, **ctrl+c** quit.
 On the results screen, **r** retakes the same text and settings; **tab** starts the next test.
 Completed retakes are saved as separate attempts.
+Quote tests also show your record on that specific quote: attempt number, your best on it, and ★ when you beat it (retakes count; history shows the record as it stood at each attempt).
 
 Incorrect letters stay highlighted in the prompt, with the actual character you typed
 shown directly beneath them. Pressing Space before finishing a word shows `␣`
