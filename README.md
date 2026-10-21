@@ -15,6 +15,8 @@ Train and pace rounds feed the weakness model but never your official WPM histor
 
 ## Install
 
+Works on Linux, macOS and Windows (CI runs the tests on all three). On Windows use Windows Terminal (or another modern terminal) for colours and the block-character logo; `sanda window` is Linux/BSD only and runs in place elsewhere. Data lives in `%LocalAppData%\\sanda` on Windows.
+
 Requires Go 1.26+ (the pure-Go SQLite driver needs it).
 
 ```sh

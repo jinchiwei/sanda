@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -42,10 +43,19 @@ type Test struct {
 
 type DB struct{ db *sql.DB }
 
+// DefaultPath is $XDG_DATA_HOME/sanda/sanda.db, ~/.local/share/sanda/sanda.db, or on Windows
+// %LocalAppData%\sanda\sanda.db.
 func DefaultPath() string {
 	d := os.Getenv("XDG_DATA_HOME")
+	if d == "" && runtime.GOOS == "windows" {
+		d = os.Getenv("LocalAppData")
+	}
 	if d == "" {
-		d = filepath.Join(os.Getenv("HOME"), ".local", "share")
+		home, err := os.UserHomeDir()
+		if err != nil {
+			home = "."
+		}
+		d = filepath.Join(home, ".local", "share")
 	}
 	return filepath.Join(d, "sanda", "sanda.db")
 }

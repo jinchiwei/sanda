@@ -40,7 +40,8 @@ func Default() Config {
 func Dir() string {
 	d, err := os.UserConfigDir()
 	if err != nil {
-		d = filepath.Join(os.Getenv("HOME"), ".config")
+		home, _ := os.UserHomeDir()
+		d = filepath.Join(home, ".config")
 	}
 	return filepath.Join(d, "sanda")
 }

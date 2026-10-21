@@ -15,9 +15,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
-
-	"golang.org/x/sys/unix"
 )
 
 // InWindowEnv marks a process already running in a sanda window, so it never relaunches itself.
@@ -112,11 +109,11 @@ const needCols, needRows = 92, 38
 // the current one, between 1× and 2×.
 func AutoSize(key string) float64 {
 	cur := currentFontSize(key)
-	ws, err := unix.IoctlGetWinsize(int(os.Stdout.Fd()), unix.TIOCGWINSZ)
-	if err != nil || ws.Col == 0 || ws.Row == 0 {
+	cols, rows := terminalSize()
+	if cols == 0 || rows == 0 {
 		return math.Round(cur*1.5*2) / 2
 	}
-	f := math.Min(float64(ws.Col)/needCols, float64(ws.Row)/needRows)
+	f := math.Min(float64(cols)/needCols, float64(rows)/needRows)
 	f = math.Max(1, math.Min(2, f))
 	return math.Round(cur*f*2) / 2 // to the nearest half point
 }
@@ -148,7 +145,7 @@ func Open(fontSize float64, family string, args []string) (string, error) {
 	}
 	cmd := exec.Command(bin, t.Args(fontSize, family, append([]string{self}, args...))...)
 	cmd.Env = append(os.Environ(), InWindowEnv+"=1")
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true} // survives this shell closing
+	detach(cmd) // survives this shell closing
 	if err := cmd.Start(); err != nil {
 		return "", err
 	}
