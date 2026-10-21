@@ -10,6 +10,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/jinchiwei/sanda/internal/analysis"
 	"github.com/jinchiwei/sanda/internal/config"
@@ -39,6 +40,7 @@ const (
 	ActTest Activity = iota
 	ActTrain
 	ActPace
+	ActFreedom
 )
 
 type pacePhase int
@@ -64,6 +66,7 @@ type Model struct {
 	menuBack screen // where esc in the menu returns to (typing or results)
 	subBack  screen // where the theme picker and progress return to (menu, typing or results)
 	activity Activity
+	free     freeWriting
 
 	sess   *engine.Session
 	words  []string
@@ -114,6 +117,8 @@ func New(cfg config.Config, db *store.DB, start string) *Model {
 	m := &Model{cfg: cfg, db: db, seed: uint64(time.Now().UnixNano())}
 	m.setTheme(cfg.Theme)
 	switch start {
+	case "freedom":
+		m.startFreedom()
 	case "train":
 		m.startTrain()
 	case "pace":
@@ -144,6 +149,7 @@ func (m *Model) nextSeed() uint64 { m.seed++; return m.seed }
 
 // newTest starts an official Monkeytype-style test from the config.
 func (m *Model) newTest() {
+	m.free = freeWriting{}
 	m.activity = ActTest
 	m.quote = nil
 	m.gen = textgen.New(m.cfg.Punctuation, m.cfg.Numbers, m.nextSeed())
@@ -183,6 +189,7 @@ func (m *Model) reloadModel() {
 }
 
 func (m *Model) startTrain() {
+	m.free = freeWriting{}
 	m.activity = ActTrain
 	m.reloadModel()
 	sched, _ := m.db.Schedule()
@@ -201,6 +208,7 @@ func (m *Model) startTrain() {
 }
 
 func (m *Model) startPace() {
+	m.free = freeWriting{}
 	if m.activity != ActPace {
 		m.phase = phaseBurst
 	}
@@ -225,6 +233,8 @@ func (m *Model) startPace() {
 // restart begins a fresh round of the current activity.
 func (m *Model) restart() {
 	switch m.activity {
+	case ActFreedom:
+		m.startFreedom()
 	case ActTrain:
 		m.startTrain()
 	case ActPace:
@@ -267,6 +277,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) keyTyping(k tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.activity == ActFreedom {
+		return m.keyFreedom(k)
+	}
 	now := time.Now()
 	if k.Paste {
 		return m, nil
@@ -278,9 +291,9 @@ func (m *Model) keyTyping(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "esc":
 		m.openMenu(scrTyping)
 		return m, nil
-	case "backspace":
+	case "backspace", "ctrl+h":
 		m.sess.Backspace(now)
-	case "ctrl+h", "ctrl+w", "alt+backspace", "ctrl+backspace":
+	case "ctrl+w", "alt+backspace", "ctrl+backspace":
 		m.sess.DeleteWord(now)
 	case " ":
 		m.sess.Space(now)
@@ -297,7 +310,7 @@ func (m *Model) keyTyping(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // checkDone saves a finished round and shows its results.
 func (m *Model) checkDone() {
-	if !m.sess.Finished() || m.saved {
+	if m.activity == ActFreedom || m.sess == nil || !m.sess.Finished() || m.saved {
 		return
 	}
 	m.saved = true
@@ -372,11 +385,39 @@ func (m *Model) paceVerdict() string {
 	return fmt.Sprintf("control round below 97%% accuracy (%.0f%%): slow down a touch", m.stats.Acc)
 }
 
+// retake repeats the current prompt and session settings without selecting new
+// text, advancing a pace phase, or modifying the previous saved result.
+func (m *Model) retake() {
+	if m.sess == nil {
+		return
+	}
+	previous := m.sess
+	m.words = make([]string, len(previous.Words))
+	for i, word := range previous.Words {
+		m.words[i] = string(word)
+	}
+	m.sess = engine.New(m.words)
+	m.sess.TimeLimit = previous.TimeLimit
+	m.sess.FreeBackspace = previous.FreeBackspace
+	m.sess.More = previous.More
+	m.saved = false
+	m.stats = engine.Stats{}
+	m.losses = nil
+	m.outcome = nil
+	m.pb = false
+	m.prevPB = 0
+	m.paceNote = ""
+	m.status = ""
+	m.screen = scrTyping
+}
+
 func (m *Model) keyResult(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if time.Since(m.shownAt) < 500*time.Millisecond {
 		return m, nil
 	}
 	switch k.String() {
+	case "r":
+		m.retake()
 	case "tab", "enter":
 		if m.activity == ActPace {
 			if m.phase == phaseBurst {
@@ -401,7 +442,11 @@ func (m *Model) View() string {
 	var body string
 	switch m.screen {
 	case scrTyping:
-		body = m.viewTyping()
+		if m.activity == ActFreedom {
+			body = m.viewFreedom()
+		} else {
+			body = m.viewTyping()
+		}
 	case scrResult:
 		body = m.viewResult()
 	case scrMenu:
@@ -417,20 +462,27 @@ func (m *Model) View() string {
 		body = m.progress
 	}
 	// Monkeytype-style footer: app, theme and version bottom-right, hidden while typing (focus mode).
-	focus := m.screen == scrTyping && m.sess.Started() && !m.sess.Finished()
+	focus := m.screen == scrTyping && m.typingStarted()
 	if m.h < 8 {
 		return m.place(m.w, m.h, body)
 	}
 	bottom := m.bgSpaces(m.w)
 	if !focus {
-		right := m.sub("sanda ") + m.main("散") + m.fg(m.hot(m.th.Sub)).Render("打") + m.sub(" · "+m.th.Name+" · "+Version) + m.bgSpaces(2)
+		right := m.sub("sanda ") + m.fg(m.th.Caret).Render("散") + m.main("打") + m.sub(" · "+m.th.Name+" · "+Version) + m.bgSpaces(2)
 		bottom = m.bgSpaces(m.w-lipgloss.Width(right)) + right
 	}
 	h := m.h - 1
+	content := m.place(m.w, h, body)
 	if m.screen == scrTyping {
-		return m.withLogo(body, h, !focus || m.cfg.KeepLogo) + "\n" + bottom
+		content = m.withLogo(body, h, !focus || m.cfg.KeepLogo)
 	}
-	return m.place(m.w, h, body) + "\n" + bottom
+	// Use one row of bottom padding to lower the content without moving the footer.
+	// Keep the existing layout when the terminal is too short to spare that row.
+	lines := strings.Split(content, "\n")
+	if len(lines) > 1 && strings.TrimSpace(ansi.Strip(lines[len(lines)-1])) == "" {
+		content = m.bgSpaces(m.w) + "\n" + strings.Join(lines[:len(lines)-1], "\n")
+	}
+	return content + "\n" + bottom
 }
 
 // withLogo keeps the typing block exactly centred and puts the big 散打 in the space above it

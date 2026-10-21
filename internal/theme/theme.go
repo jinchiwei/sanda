@@ -9,14 +9,15 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
-	"github.com/charmbracelet/lipgloss"
 
 	"github.com/jinchiwei/sanda/internal/data"
 )
 
 // Theme uses Monkeytype's colour roles:
 // bg background, main accent (stats, highlights), caret cursor, sub untyped text and secondary UI,
-// subAlt panels, text correctly typed text, error wrong characters, errorExtra extra characters.
+// subAlt panels, text general UI text, error wrong characters, errorExtra extra characters.
+// typed optionally overrides correctly typed text; otherwise it uses text.
+// untyped optionally overrides pending text; otherwise it uses sub.
 // bg = "terminal" draws no background at all, so the terminal's own background shows through.
 type Theme struct {
 	Name       string `json:"-" toml:"-"`
@@ -26,25 +27,21 @@ type Theme struct {
 	Sub        string `json:"sub" toml:"sub"`
 	SubAlt     string `json:"subAlt" toml:"subAlt"`
 	Text       string `json:"text" toml:"text"`
+	Typed      string `json:"typed,omitempty" toml:"typed,omitempty"`
+	Untyped    string `json:"untyped,omitempty" toml:"untyped,omitempty"`
 	Error      string `json:"error" toml:"error"`
 	ErrorExtra string `json:"errorExtra" toml:"errorExtra"`
-	// Accents are optional decorative colours: [0] warm (accuracy, raw line, highlights), [1] hot (timer/word counter, labels),
-	// [4] gold (logo highlights; defaults to a lighter warm).
-	// Themes without them (all Monkeytype presets) fall back to their own roles and stay as designed.
-	Accents []string `json:"accents,omitempty" toml:"accents"`
 }
 
 // Builtin themes made for sanda, on top of the Monkeytype presets.
 var builtin = map[string]Theme{
 	"dreamtheme": {
-		Bg: Terminal, Main: "#40E0D0", Caret: "#40E0D0", Sub: "#7a7a8c", SubAlt: "#16161d",
-		Text: "#c8c8d0", Error: "#FF1493", ErrorExtra: "#8A2BE2",
-		Accents: []string{"#F0C840", "#FF1493", "#BA55D3", "#FF7F50", "#FFD700"}, // amber, deeppink, orchid, coral, gold
+		Bg: Terminal, Main: "#FF1493", Caret: "#40E0D0", Sub: "#7a7a8c", SubAlt: "#16161d",
+		Text: "#F5F5FA", Typed: "#F0C840", Untyped: "#F5F5FA", Error: "#BF40FF", ErrorExtra: "#FF7F50",
 	},
 	"andromeda": {
 		Bg: "#23262E", Main: "#00e8c6", Caret: "#FFE66D", Sub: "#746f77", SubAlt: "#2b2f38",
-		Text: "#D5CED9", Error: "#ee5d43", ErrorExtra: "#ff00aa",
-		Accents: []string{"#FFE66D", "#ff00aa", "#c74ded", "#7cb7ff"},
+		Text: "#FFE66D", Error: "#ee5d43", ErrorExtra: "#ff00aa",
 	},
 }
 
@@ -110,14 +107,17 @@ func Get(name string) Theme {
 }
 
 func (t *Theme) normalize() {
+	if strings.TrimSpace(t.Untyped) == "" {
+		t.Untyped = t.Sub
+	}
+	if strings.TrimSpace(t.Typed) == "" {
+		t.Typed = t.Text
+	}
 	if t.Bg != Terminal {
 		t.Bg = hex6(t.Bg)
 	}
-	for _, p := range []*string{&t.Main, &t.Caret, &t.Sub, &t.SubAlt, &t.Text, &t.Error, &t.ErrorExtra} {
+	for _, p := range []*string{&t.Main, &t.Caret, &t.Sub, &t.SubAlt, &t.Text, &t.Typed, &t.Untyped, &t.Error, &t.ErrorExtra} {
 		*p = hex6(*p)
-	}
-	for i := range t.Accents {
-		t.Accents[i] = hex6(t.Accents[i])
 	}
 }
 
@@ -131,15 +131,6 @@ func hex6(h string) string {
 		return "#" + h[:6]
 	}
 	return "#" + h
-}
-
-// Accent returns accent i, falling back to the theme's main, caret and error colours.
-func (t Theme) Accent(i int) lipgloss.Color {
-	fallback := []string{t.Main, t.Caret, t.Error}
-	if i < len(t.Accents) {
-		return lipgloss.Color(t.Accents[i])
-	}
-	return lipgloss.Color(fallback[i%len(fallback)])
 }
 
 // BgHex is the background colour, or "" when the terminal's own background is used.

@@ -108,7 +108,7 @@ func (m *Model) viewHistory() string {
 		filter = "all rounds (incl. train and pace)"
 	}
 	out := []string{m.main("history") + m.sub("  "+filter), m.bgSpaces(1)}
-	out = append(out, m.fg(m.hot(m.th.Sub)).Render(fmt.Sprintf("  %-17s %-16s %5s %6s %5s %6s %6s", "when", "test", "wpm", "acc", "raw", "cons", "time")))
+	out = append(out, m.fg(m.th.Sub).Render(fmt.Sprintf("  %-17s %-16s %5s %6s %5s %6s %6s", "when", "test", "wpm", "acc", "raw", "cons", "time")))
 	if len(m.histTests) == 0 {
 		out = append(out, m.sub("  no finished tests yet"))
 	}
@@ -138,7 +138,7 @@ func (m *Model) historyDetail(t store.Test) string {
 			PerSecond: engine.PerSecond(events, dur)},
 		losses: analysis.Breakdown(events, strings.Fields(t.Text), dur),
 		label:  t.StartedAt.Local().Format("Mon Jan 2 2006, 15:04") + "  ·  " + histLabel(t),
-		footer: m.keycap("esc", m.hot(m.th.Text)) + m.sub(" back to history   ") + m.keycap("q", m.th.Text) + m.sub(" quit"),
+		footer: m.keycap("esc", m.th.Text) + m.sub(" back to history   ") + m.keycap("q", m.th.Text) + m.sub(" quit"),
 	}
 	if t.QuoteID > 0 {
 		if q, ok := data.QuoteByID(t.QuoteID); ok {

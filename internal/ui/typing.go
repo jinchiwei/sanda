@@ -12,10 +12,11 @@ import (
 
 // cell is one character on the typing screen.
 type cell struct {
-	r     rune
-	fg    string
-	bg    string
-	under bool
+	r        rune
+	fg       string
+	bg       string
+	under    bool
+	mistyped rune // actual input, displayed below an incorrect expected character
 }
 
 // wrap assigns each word to a line given the text width; returns the first word index of each line.
@@ -73,9 +74,9 @@ func (m *Model) viewTyping() string {
 		for wi := starts[li]; wi < end; wi++ {
 			cells = append(cells, m.wordCells(wi, wordOffset[wi], ghost)...)
 		}
-		lines = append(lines, m.renderCells(cells, tw))
+		lines = append(lines, m.renderCells(cells, tw), m.renderMistypes(cells, tw))
 	}
-	for len(lines) < 3 {
+	for len(lines) < 6 {
 		lines = append(lines, m.bgSpaces(tw))
 	}
 
@@ -105,17 +106,22 @@ func (m *Model) wordCells(wi, off, ghost int) []cell {
 	wrong := submitted && !s.WordCorrect(wi)
 	var cells []cell
 	for j, r := range word {
-		c := cell{r: r, fg: m.th.Sub, bg: m.th.BgHex(), under: wrong}
+		c := cell{r: r, fg: m.th.Untyped, bg: m.th.BgHex(), under: wrong}
 		if j < len(in) {
 			if in[j] == r {
-				c.fg = m.th.Text
+				c.fg = m.th.Typed
 			} else {
 				c.fg = m.th.Error
+				c.mistyped = in[j]
 			}
+		} else if submitted && j == len(in) {
+			// Space submitted this word before its expected end.
+			c.fg = m.th.Error
+			c.mistyped = '␣'
 		}
 		if off+j == ghost {
 			c.bg = m.th.SubAlt
-			c.fg = m.warm(m.th.Main)
+			c.fg = m.th.Main
 		}
 		cells = append(cells, c)
 	}
@@ -132,11 +138,25 @@ func (m *Model) wordCells(wi, off, ghost int) []cell {
 			return cells
 		}
 	}
-	sp := cell{r: ' ', fg: m.th.Sub, bg: m.th.BgHex()}
+	sp := cell{r: ' ', fg: m.th.Untyped, bg: m.th.BgHex()}
 	if off+len(word) == ghost {
 		sp.bg = m.th.SubAlt
 	}
 	return append(cells, sp)
+}
+
+// renderMistypes keeps actual incorrect letters aligned beneath the prompt.
+// Empty hint rows are retained so correcting a mistake never moves the text.
+func (m *Model) renderMistypes(cells []cell, width int) string {
+	hints := make([]cell, min(len(cells), width))
+	for i := range hints {
+		r := cells[i].mistyped
+		if r == 0 {
+			r = ' '
+		}
+		hints[i] = cell{r: r, fg: m.th.Error, bg: m.th.BgHex()}
+	}
+	return m.renderCells(hints, width)
 }
 
 // renderCells groups runs of identical style so lipgloss isn't called per character.
@@ -167,16 +187,16 @@ func (m *Model) typingHeader(now time.Time) string {
 	var left string
 	switch {
 	case s.TimeLimit > 0:
-		left = m.fg(m.hot(m.th.Main)).Render(fmt.Sprintf("%d", int((s.TimeLimit-s.Elapsed(now)).Seconds()+0.999)))
+		left = m.fg(m.th.Main).Render(fmt.Sprintf("%d", int((s.TimeLimit-s.Elapsed(now)).Seconds()+0.999)))
 	default:
-		left = m.fg(m.hot(m.th.Main)).Render(fmt.Sprintf("%d/%d", s.Cur, len(s.Words)))
+		left = m.fg(m.th.Main).Render(fmt.Sprintf("%d/%d", s.Cur, len(s.Words)))
 	}
 	if s.Started() && m.cfg.LiveWPM {
 		live := "–"
 		if w := s.LiveWPM(now); w > 0 {
 			live = fmt.Sprintf("%.0f", w)
 		}
-		left += m.bgSpaces(3) + m.fg(m.th.Main).Render(live) + m.sub(" wpm")
+		left += m.bgSpaces(3) + m.fg(m.th.Caret).Render(live) + m.sub(" wpm")
 	}
 	if !s.Started() {
 		left = m.configLine()
@@ -191,10 +211,10 @@ func (m *Model) typingHeader(now time.Time) string {
 			}
 			units = append(units, u)
 		}
-		left += m.fg(m.hot(m.th.Sub)).Render("   train · ") + m.fg(m.warm(m.th.Main)).Render(strings.Join(units, "  "))
+		left += m.fg(m.th.Sub).Render("   train · ") + m.fg(m.th.Main).Render(strings.Join(units, "  "))
 	case ActPace:
 		if m.phase == phaseBurst {
-			left += m.fg(m.hot(m.th.Sub)).Render("   burst · ") + m.sub("pacer ") + m.fg(m.warm(m.th.Main)).Render(fmt.Sprintf("%.0f", m.target)) + m.sub(" wpm")
+			left += m.fg(m.th.Sub).Render("   burst · ") + m.sub("pacer ") + m.fg(m.th.Main).Render(fmt.Sprintf("%.0f", m.target)) + m.sub(" wpm")
 			if s.Started() {
 				mine := float64(s.CaretOffset()) / 5 / s.Elapsed(now).Minutes()
 				if s.Elapsed(now) > time.Second {
@@ -207,7 +227,7 @@ func (m *Model) typingHeader(now time.Time) string {
 				}
 			}
 		} else {
-			left += m.fg(m.hot(m.th.Sub)).Render("   control · ") + m.sub("type clean, no pacer")
+			left += m.fg(m.th.Sub).Render("   control · ") + m.sub("type clean, no pacer")
 		}
 	}
 	return left
@@ -230,14 +250,14 @@ func (m *Model) configLine() string {
 	sep := m.sub(" · ")
 	punct, nums := m.sub("@ punctuation"), m.sub("# numbers")
 	if m.cfg.Punctuation {
-		punct = m.fg(m.warm(m.th.Main)).Render("@ punctuation")
+		punct = m.fg(m.th.Main).Render("@ punctuation")
 	}
 	if m.cfg.Numbers {
-		nums = m.fg(m.hot(m.th.Main)).Render("# numbers")
+		nums = m.fg(m.th.Main).Render("# numbers")
 	}
 	return punct + sep + nums + sep + m.main(mode)
 }
 
 func (m *Model) typingFooter() string {
-	return m.keycap("tab", m.warm(m.th.Text)) + m.sub(" restart   ") + m.keycap("esc", m.hot(m.th.Text)) + m.sub(" menu")
+	return m.keycap("tab", m.th.Text) + m.sub(" restart   ") + m.keycap("esc", m.th.Text) + m.sub(" menu")
 }

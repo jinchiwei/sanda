@@ -112,15 +112,16 @@ A unit drops off the drill list once its median IKI is within baseline across N 
 
     | key | colour | used for (Monkeytype meaning) |
     |---|---|---|
-    | bg | `#0a0a0a` | background |
-    | main | `#40E0D0` turquoise | accent: stats, highlights, active selection |
+    | bg | `terminal` | use terminal background |
+    | main | `#FF1493` deeppink | accent: stats, highlights, active selection |
     | caret | `#40E0D0` turquoise | cursor |
-    | text | `#c8c8d0` | correctly typed text |
-    | sub | `#7a7a8c` | not-yet-typed text, secondary UI |
+    | text | `#F5F5FA` | general UI text |
+    | typed | `#F0C840` | correctly typed text (optional, defaults to text) |
+    | untyped | `#F5F5FA` | not-yet-typed text (optional, defaults to sub) |
+    | sub | `#7a7a8c` | secondary UI |
     | subAlt | `#16161d` | panels / key-hint backgrounds |
-    | error | `#FF1493` deeppink | wrong character |
-    | errorExtra | `#8A2BE2` blueviolet | extra characters past the word |
-    | accents | `#F0C840` amber, `#BA55D3` mediumorchid, `#FF7F50` coral | spare, e.g. chart lines and "what cost you" |
+    | error | `#BF40FF` neon violet | wrong character |
+    | errorExtra | `#FF7F50` coral | extra characters past the word |
 
   - **andromeda**:
 
@@ -129,10 +130,12 @@ A unit drops off the drill list once its median IKI is within baseline across N 
     | bg | `#23262E` |
     | main | `#00e8c6` |
     | caret | `#FFE66D` |
-    | text | `#D5CED9` |
+    | text | `#FFE66D` |
     | error | `#ee5d43` |
     | errorExtra | `#ff00aa` |
 
+- Optional `typed` overrides writing colour; presets without it fall back to `text`.
+- Optional `untyped` overrides pending text colour; presets without it fall back to `sub`.
 - Truecolor output. A theme picker with live preview. Custom themes go in `~/.config/sanda/themes/*.toml`.
 - The font is the terminal's (a terminal app can't set its own).
 
@@ -175,4 +178,4 @@ Multiplayer, ghost replays, a web version, languages other than English.
 Decided:
 - Abandoned tests are not saved.
 - Train and Pace rounds are **kept separate** from the official WPM history. Their keystrokes still feed the weakness model.
-- dreamtheme: cursor turquoise. Untyped text is `sub` grey, typed text is `text` light grey.
+- dreamtheme: cursor turquoise. Untyped text is `untyped` white, secondary labels are `sub` grey, typed text is `typed` amber.

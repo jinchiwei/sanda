@@ -18,21 +18,6 @@ func bgStyle(st lipgloss.Style, hex string) lipgloss.Style {
 	return st.Background(lipgloss.Color(hex))
 }
 
-// warm and hot are a theme's decorative accents (dreamtheme: amber and deeppink), or fallback if it has none.
-func (m *Model) warm(fallback string) string {
-	if len(m.th.Accents) > 0 {
-		return m.th.Accents[0]
-	}
-	return fallback
-}
-
-func (m *Model) hot(fallback string) string {
-	if len(m.th.Accents) > 1 {
-		return m.th.Accents[1]
-	}
-	return fallback
-}
-
 // keycap renders a key hint like " tab " on the panel colour.
 func (m *Model) keycap(s, fgHex string) string {
 	return m.fg(fgHex).Background(lipgloss.Color(m.th.SubAlt)).Render(" " + s + " ")
@@ -70,9 +55,8 @@ func (m *Model) block(lines []string) string {
 	return strings.Join(lines, "\n")
 }
 
-// logoLines renders the big 散打 from its brush-textured pixel map, two pixel rows per text row. Each pixel
-// mixes its character's colour (left: main, right: hot accent) toward the warm accent by its 0-9 level.
-// Themes without accents get the main colour washed toward their sub colour.
+// logoLines shades the brush-textured logo from standard theme roles:
+// caret for the first character, main for the second, and typed for highlights.
 func (m *Model) logoLines(pixels []string) []string {
 	key := m.th.Name + m.th.Bg + fmt.Sprint(len(pixels))
 	if m.logoKey == key {
@@ -82,14 +66,10 @@ func (m *Model) logoLines(pixels []string) []string {
 	for _, r := range pixels {
 		width = max(width, len(r))
 	}
-	left, right, warm := rgb(m.th.Main), rgb(m.hot(m.th.Main)), rgb(m.warm(m.th.Sub))
+	left, right, warm := rgb(m.th.Caret), rgb(m.th.Main), rgb(m.th.Typed)
 	white := [3]float64{255, 255, 255}
-	gold := mix(warm, white, 0.25)
-	if len(m.th.Accents) > 4 {
-		gold = m.th.Accents[4]
-	}
-	// Levels 6-9 are warm shades: orange-amber, amber, gold, pale gold.
-	shades := map[byte]string{6: mix(warm, [3]float64{225, 110, 10}, 0.5), 7: mix(warm, warm, 0), 8: gold, 9: mix(rgb(gold), white, 0.45)}
+	gold := mix(warm, white, 0.15)
+	shades := map[byte]string{6: mix(warm, rgb(m.th.Sub), 0.2), 7: mix(warm, warm, 0), 8: gold, 9: mix(rgb(gold), white, 0.45)}
 	color := func(c byte) string {
 		var lvl byte
 		var base [3]float64
@@ -265,7 +245,7 @@ func (m *Model) chart(ps []engine.Second, width, height int) []string {
 			case 2:
 				line += m.main(c)
 			case 1:
-				line += m.fg(m.warm(m.th.Sub)).Render(c)
+				line += m.fg(m.th.Sub).Render(c)
 			default:
 				line += m.bgSpaces(1)
 			}

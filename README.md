@@ -30,6 +30,7 @@ sanda                  take a test with your saved settings
 sanda -t 60            60-second test (flags are saved as your new defaults)
 sanda -w 25 | -q long  word test / quote test
 sanda -p -n            toggle punctuation / numbers
+sanda freedom          free writing with live WPM; nothing saved
 sanda train            adaptive drills
 sanda pace             overspeed + control rounds
 sanda progress         plateau gap, weak spots, trends
@@ -37,6 +38,20 @@ sanda themes           theme picker
 sanda history [n]      last n official tests as plain text (in the app: esc → history, enter reopens a result)
 sanda window [cmd]     same, in a new window of this terminal with a bigger font
 ```
+
+### Freedom mode
+
+Run `sanda freedom`, or choose **freedom** from the menu, for a blank writing area.
+Type whatever you like; Enter starts a new line and backspace edits your writing.
+Live WPM counts the characters currently in your text (five characters per word),
+including spaces and line breaks, divided by the time since you started typing.
+There is no timer, correctness scoring, or results screen. Text stays only in memory:
+no tests, keystrokes, personal bests, or training records are saved. Tab clears the text
+and resets WPM; Esc opens the menu (returning starts fresh); Ctrl+C quits.
+
+The 散打 logo follows each theme: caret for 散, main for 打, and typed for highlights.
+Dreamtheme uses turquoise, deeppink, and amber respectively. WPM uses turquoise;
+progress highlights use deeppink.
 
 ### Bigger text: `sanda window`
 
@@ -60,12 +75,18 @@ Options (esc → options, or in the config):
 |---|---|---|
 | live wpm (`live_wpm`) | on | running WPM next to the timer |
 | free backspace (`free_backspace`) | on | backspace into any earlier word, not only wrong ones (Monkeytype's "freedom mode") |
-| terminal bg (`terminal_background`) | off | use your terminal's background with any theme (dreamtheme always does) |
+| terminal bg (`terminal_background`) | off | use your terminal's background with any theme (dreamtheme uses this by default) |
 | keep logo (`keep_logo`) | on | keep the 散打 logo on screen while typing (off = it hides, like Monkeytype's focus mode) |
 
 In the menu, **j/k** (or ↓/↑) move between rows and **h/l** (or ←/→) move within a row.
 
 Keys: **tab** restart / next, **esc** menu, **ctrl+backspace** or **ctrl+w** delete word, **ctrl+c** quit.
+On the results screen, **r** retakes the same text and settings; **tab** starts the next test.
+Completed retakes are saved as separate attempts.
+
+Incorrect letters stay highlighted in the prompt, with the actual character you typed
+shown directly beneath them. Pressing Space before finishing a word shows `␣`
+beneath the first skipped letter. Correcting the character removes its hint.
 
 ## Files
 
@@ -79,14 +100,15 @@ A custom theme uses Monkeytype's colour roles:
 
 ```toml
 bg = "#0a0a0a"         # background, or "terminal" to use the terminal's own
-main = "#40E0D0"       # accent: stats, highlights
+main = "#FF1493"       # accent: stats, highlights
 caret = "#40E0D0"      # cursor
-text = "#c8c8d0"       # typed text
-sub = "#7a7a8c"        # text not typed yet, secondary UI
+text = "#F5F5FA"       # general UI text
+typed = "#F0C840"      # correctly typed text; optional, falls back to text
+untyped = "#F5F5FA"    # text not typed yet; optional, falls back to sub
+sub = "#7a7a8c"        # secondary UI; default untyped color
 subAlt = "#16161d"     # panels
-error = "#FF1493"      # wrong characters
-errorExtra = "#8A2BE2" # extra characters
-accents = ["#F0C840", "#BA55D3", "#FF7F50"]  # optional
+error = "#BF40FF"      # wrong characters
+errorExtra = "#FF7F50" # extra characters
 ```
 
 ## How the analysis works

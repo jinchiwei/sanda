@@ -56,19 +56,19 @@ func (m *Model) buildMenu() {
 	for _, t := range []int{15, 30, 60, 120} {
 		t := t
 		timeRow = append(timeRow, menuItem{fmt.Sprint(t),
-			func(m *Model) bool { return m.cfg.Mode == "time" && m.cfg.Time == t },
+			func(m *Model) bool { return m.activity == ActTest && m.cfg.Mode == "time" && m.cfg.Time == t },
 			m.setTest("time", func(c *config.Config) { c.Time = t })})
 	}
 	for _, w := range []int{10, 25, 50, 100} {
 		w := w
 		wordsRow = append(wordsRow, menuItem{fmt.Sprint(w),
-			func(m *Model) bool { return m.cfg.Mode == "words" && m.cfg.Words == w },
+			func(m *Model) bool { return m.activity == ActTest && m.cfg.Mode == "words" && m.cfg.Words == w },
 			m.setTest("words", func(c *config.Config) { c.Words = w })})
 	}
 	for _, q := range []string{"all", "short", "medium", "long", "thicc"} {
 		q := q
 		quoteRow = append(quoteRow, menuItem{q,
-			func(m *Model) bool { return m.cfg.Mode == "quote" && m.cfg.QuoteLength == q },
+			func(m *Model) bool { return m.activity == ActTest && m.cfg.Mode == "quote" && m.cfg.QuoteLength == q },
 			m.setTest("quote", func(c *config.Config) { c.QuoteLength = q })})
 	}
 	m.menuRows = []menuRow{
@@ -93,6 +93,8 @@ func (m *Model) buildMenu() {
 			func(m *Model) tea.Cmd { m.startTrain(); return nil }}}},
 		{"", []menuItem{{"pace · overspeed bursts + clean control rounds", nil,
 			func(m *Model) tea.Cmd { m.activity = ActTest; m.startPace(); return nil }}}},
+		{"", []menuItem{{"freedom · free writing, nothing saved", func(m *Model) bool { return m.activity == ActFreedom },
+			func(m *Model) tea.Cmd { m.startFreedom(); return nil }}}},
 		{"app", []menuItem{{"history", nil, func(m *Model) tea.Cmd { m.openHistory(scrMenu); return nil }}}},
 		{"", []menuItem{{"progress", nil, func(m *Model) tea.Cmd { m.openProgress(scrMenu); return nil }}}},
 		{"", []menuItem{{"theme · " + m.cfg.Theme, nil, func(m *Model) tea.Cmd { m.openThemes(scrMenu); return nil }}}},
@@ -157,7 +159,7 @@ func (m *Model) keyMenu(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "esc":
 		m.screen = m.menuBack
 		// A test left mid-way kept its clock running, so start a fresh one.
-		if m.screen == scrTyping && m.sess.Started() {
+		if m.screen == scrTyping && m.typingStarted() {
 			m.restart()
 		}
 	case "q":
@@ -169,11 +171,14 @@ func (m *Model) keyMenu(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m *Model) viewMenu() string {
 	out := []string{m.main("menu"), m.bgSpaces(1)}
 	for r, row := range m.menuRows {
-		line := m.fg(m.hot(m.th.Sub)).Render(fmt.Sprintf("%-9s", row.section))
+		line := m.fg(m.th.Sub).Render(fmt.Sprintf("%-9s", row.section))
 		for c, it := range row.items {
 			st := m.fg(m.th.Text)
 			if it.active != nil && it.active(m) {
 				st = m.fg(m.th.Main)
+				if row.section == "options" {
+					st = m.fg(m.th.Typed)
+				}
 			}
 			if r == m.menuRow && c == m.menuCol {
 				st = st.Background(lipgloss.Color(m.th.SubAlt)).Foreground(lipgloss.Color(m.th.Caret))
@@ -273,7 +278,7 @@ func (m *Model) viewThemes() string {
 	for i := start; i < end; i++ {
 		t := theme.Get(list[i])
 		swatch := ""
-		for _, c := range []string{t.BgHex(), t.Main, t.Caret, t.Text, t.Sub, t.Error} {
+		for _, c := range []string{t.BgHex(), t.Main, t.Caret, t.Text, t.Typed, t.Untyped, t.Sub, t.SubAlt, t.Error, t.ErrorExtra} {
 			if c == "" {
 				swatch += m.sub("··") // terminal background
 				continue
@@ -291,9 +296,10 @@ func (m *Model) viewThemes() string {
 	if len(list) == 0 {
 		out = append(out, m.sub("no matching themes"))
 	}
+	out = append(out, m.bgSpaces(1), m.sub("swatches: bg main caret text typed untyped sub subAlt error extra"))
 	out = append(out, m.bgSpaces(1), m.sub(fmt.Sprintf("%d themes · ↑↓ preview · enter keep · esc cancel", len(list))))
 	sample := []string{m.bgSpaces(1),
-		m.text("the quick ") + m.fg(m.th.Error).Render("x") + m.text("rown ") + m.fg(m.th.OnCaret()).Background(lipgloss.Color(m.th.Caret)).Render("f") + m.sub("ox jumps over"),
+		m.fg(m.th.Typed).Render("the quick ") + m.fg(m.th.Error).Render("x") + m.fg(m.th.Typed).Render("rown ") + m.fg(m.th.OnCaret()).Background(lipgloss.Color(m.th.Caret)).Render("f") + m.fg(m.th.Untyped).Render("ox jumps over"),
 	}
 	out = append(out, sample...)
 	return m.block(out)
@@ -342,8 +348,8 @@ func (m *Model) buildProgress() string {
 		return m.block([]string{m.fg(m.th.Error).Render(err.Error())})
 	}
 	// The plateau metric: quote speed vs short word/time speed, per week.
-	out = append(out, m.fg(m.hot(m.th.Sub)).Render("the gap · median wpm per week (word/time tests vs quotes)"))
-	out = append(out, m.sub(fmt.Sprintf("%-12s %8s %8s %8s %6s", "week of", "words", "quotes", "gap", "tests")))
+	out = append(out, m.fg(m.th.Sub).Render("the gap · median wpm per week (word/time tests vs quotes)"))
+	out = append(out, m.fg(m.th.Caret).Render(fmt.Sprintf("%-12s", "week of"))+m.sub(fmt.Sprintf(" %8s %8s %8s %6s", "words", "quotes", "gap", "tests")))
 	type wk struct {
 		words, quotes []float64
 	}
@@ -390,7 +396,7 @@ func (m *Model) buildProgress() string {
 		out = append(out, m.sub("no keystroke data yet"))
 		return m.block(out)
 	}
-	out = append(out, m.fg(m.hot(m.th.Sub)).Render(fmt.Sprintf("transition types · your median key-to-key time is %dms (last 90 days, %d samples)", md.Baseline.Milliseconds(), md.Samples)))
+	out = append(out, m.fg(m.th.Sub).Render(fmt.Sprintf("transition types · your median key-to-key time is %dms (last 90 days, %d samples)", md.Baseline.Milliseconds(), md.Samples)))
 	for _, c := range md.Classes {
 		diff := float64(c.Median-md.Baseline) / float64(md.Baseline) * 100
 		col := m.th.Text
@@ -401,7 +407,7 @@ func (m *Model) buildProgress() string {
 	}
 
 	sched, _ := m.db.Schedule()
-	out = append(out, m.bgSpaces(1), m.fg(m.hot(m.th.Sub)).Render("top weak spots · estimated time lost per 1000 characters of typical text"))
+	out = append(out, m.bgSpaces(1), m.fg(m.th.Sub).Render("top weak spots · estimated time lost per 1000 characters of typical text"))
 	out = append(out, m.sub(fmt.Sprintf("  %-6s %8s %6s %6s %7s  %-14s %s", "pair", "median", "err", "seen", "cost", "daily (↓ good)", "review")))
 	now := time.Now()
 	for i, u := range md.Ranked {
@@ -420,7 +426,7 @@ func (m *Model) buildProgress() string {
 			rev = "in " + days(s.Due.Sub(now))
 		}
 		row := fmt.Sprintf("  %-6s %6dms %5.0f%% %6d %6.2fs  ", analysis.Show(u.Unit), u.Median.Milliseconds(), u.ErrRate*100, u.Count, u.Cost)
-		out = append(out, m.text(row)+m.fg(m.warm(m.th.Main)).Render(fmt.Sprintf("%-14s", spark(daily)))+m.sub(" "+rev))
+		out = append(out, m.text(row)+m.fg(m.th.Main).Render(fmt.Sprintf("%-14s", spark(daily)))+m.sub(" "+rev))
 	}
 	grad := 0
 	for _, s := range sched {

@@ -24,6 +24,7 @@ const usage = `sanda (散打): a terminal typing trainer
 
 usage:
   sanda [flags]          take a test (Monkeytype-style)
+  sanda freedom          free writing with live WPM; nothing saved
   sanda train            adaptive drills on your weakest transitions
   sanda pace             overspeed bursts alternating with clean control rounds
   sanda progress         your plateau gap and weak spots over time
@@ -71,7 +72,7 @@ func main() {
 		return
 	}
 	switch cmd {
-	case "", "test", "train", "pace", "progress", "themes", "history":
+	case "", "test", "train", "pace", "progress", "themes", "history", "freedom":
 	case "help":
 		fmt.Print(usage)
 		return

@@ -27,7 +27,7 @@ func (m *Model) viewResult() string {
 	tw := m.textWidth()
 	if m.activity == ActTest && m.pb {
 		if m.prevPB > 0 {
-			rv.notes = append(rv.notes, m.fg(m.warm(m.th.Caret)).Render(fmt.Sprintf("★ new personal best (was %.0f)", m.prevPB)))
+			rv.notes = append(rv.notes, m.fg(m.th.Caret).Render(fmt.Sprintf("★ new personal best (was %.0f)", m.prevPB)))
 		} else {
 			rv.notes = append(rv.notes, m.sub("first result for this test type"))
 		}
@@ -52,7 +52,7 @@ func (m *Model) viewResult() string {
 	case ActPace:
 		next = " next round   "
 	}
-	rv.footer = m.keycap("tab", m.warm(m.th.Text)) + m.sub(next) + m.keycap("esc", m.hot(m.th.Text)) + m.sub(" menu   ") + m.keycap("q", m.th.Text) + m.sub(" quit")
+	rv.footer = m.keycap("tab", m.th.Text) + m.sub(next) + m.keycap("r", m.th.Text) + m.sub(" retake   ") + m.keycap("esc", m.th.Text) + m.sub(" menu   ") + m.keycap("q", m.th.Text) + m.sub(" quit")
 	return m.renderResult(rv, after)
 }
 
@@ -63,9 +63,9 @@ func (m *Model) renderResult(rv resultView, after []string) string {
 	var out []string
 
 	// Headline: big wpm and accuracy, like Monkeytype's left column.
-	wpm := m.big(fmt.Sprintf("%.0f", st.WPM), m.th.Main)
-	acc := m.big(fmt.Sprintf("%.0f%%", st.Acc), m.warm(m.th.Main))
-	out = append(out, m.fg(m.hot(m.th.Sub)).Render("wpm")+m.bgSpaces(lipgloss.Width(wpm[0])+3)+m.fg(m.hot(m.th.Sub)).Render("acc"))
+	wpm := m.big(fmt.Sprintf("%.0f", st.WPM), m.th.Caret)
+	acc := m.big(fmt.Sprintf("%.0f%%", st.Acc), m.th.Main)
+	out = append(out, m.fg(m.th.Sub).Render("wpm")+m.bgSpaces(lipgloss.Width(wpm[0])+3)+m.fg(m.th.Sub).Render("acc"))
 	for i := range wpm {
 		out = append(out, wpm[i]+m.bgSpaces(6)+acc[i])
 	}
@@ -73,11 +73,11 @@ func (m *Model) renderResult(rv resultView, after []string) string {
 
 	stat := func(label, v string) string { return m.sub(label+" ") + m.text(v) }
 	statC := func(label, v, hex string) string { return m.sub(label+" ") + m.fg(hex).Render(v) }
-	chars := m.text(fmt.Sprint(st.Correct)) + m.sub("/") + m.fg(m.th.Error).Render(fmt.Sprint(st.Incorrect)) + m.sub("/") +
+	chars := m.fg(m.th.Typed).Render(fmt.Sprint(st.Correct)) + m.sub("/") + m.fg(m.th.Error).Render(fmt.Sprint(st.Incorrect)) + m.sub("/") +
 		m.fg(m.th.ErrorExtra).Render(fmt.Sprint(st.Extra)) + m.sub("/") + m.sub(fmt.Sprint(st.Missed))
 	line := strings.Join([]string{
-		statC("raw", fmt.Sprintf("%.0f", st.Raw), m.warm(m.th.Text)),
-		statC("consistency", fmt.Sprintf("%.0f%%", st.Consistency), m.hot(m.th.Text)),
+		statC("raw", fmt.Sprintf("%.0f", st.Raw), m.th.Typed),
+		statC("consistency", fmt.Sprintf("%.0f%%", st.Consistency), m.th.Typed),
 		m.sub("characters ") + chars,
 		stat("time", fmt.Sprintf("%.0fs", st.Duration.Seconds())),
 	}, m.bgSpaces(3))
@@ -88,7 +88,7 @@ func (m *Model) renderResult(rv resultView, after []string) string {
 
 	// Quote source, Monkeytype style.
 	if rv.quote != nil {
-		out = append(out, m.bgSpaces(1), m.fg(m.hot(m.th.Sub)).Render("source"))
+		out = append(out, m.bgSpaces(1), m.fg(m.th.Sub).Render("source"))
 		for _, l := range wrapText(rv.quote.Source, tw) {
 			out = append(out, m.text(l))
 		}
@@ -97,12 +97,12 @@ func (m *Model) renderResult(rv resultView, after []string) string {
 
 	// What cost you: the top three estimated losses.
 	if len(rv.losses) > 0 {
-		out = append(out, m.bgSpaces(1), m.fg(m.hot(m.th.Sub)).Render("what cost you"))
+		out = append(out, m.bgSpaces(1), m.fg(m.th.Sub).Render("what cost you"))
 		for i, l := range rv.losses {
 			if i == 3 || l.Seconds < 0.15 {
 				break
 			}
-			out = append(out, m.fg(m.warm(m.th.Error)).Render(fmt.Sprintf("−%.1fs", l.Seconds))+m.bgSpaces(2)+m.text(l.Label))
+			out = append(out, m.fg(m.th.Error).Render(fmt.Sprintf("−%.1fs", l.Seconds))+m.bgSpaces(2)+m.text(l.Label))
 		}
 	}
 
