@@ -220,6 +220,28 @@ func (d *DB) BestWPM(mode, value string, punct, numbers bool) float64 {
 	return best.Float64
 }
 
+// Bests returns the personal best for each value of a mode (time 15, 30…; words 10, 25…) under the same
+// punctuation and numbers settings, keyed by mode value.
+func (d *DB) Bests(mode string, punct, numbers bool) (map[string]Test, error) {
+	rows, err := d.db.Query(`SELECT `+testCols+` FROM tests WHERE kind = ? AND mode = ? AND punctuation = ? AND numbers = ?
+		ORDER BY wpm DESC`, KindOfficial, mode, b2i(punct), b2i(numbers))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]Test{}
+	for rows.Next() {
+		t, err := scanTest(rows)
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := out[t.ModeValue]; !ok {
+			out[t.ModeValue] = t
+		}
+	}
+	return out, rows.Err()
+}
+
 // TestEvents is one round with its keystrokes, for analysis.
 type TestEvents struct {
 	Test   Test

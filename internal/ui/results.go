@@ -39,6 +39,10 @@ func (m *Model) viewResult() string {
 		rv.notes = append(rv.notes, m.quoteRecordLine(m.quoteRec, m.stats.WPM, len(m.quoteRec)+1, true))
 	}
 	var after []string
+	if m.activity == ActTest && m.bests != nil {
+		after = append(after, m.bgSpaces(1))
+		after = append(after, m.bestsTable()...)
+	}
 	switch m.activity {
 	case ActTrain:
 		after = append(after, m.bgSpaces(1))
@@ -102,7 +106,7 @@ func (m *Model) renderResult(rv resultView, after []string) string {
 	out = append(out, after...)
 
 	// What cost you: the top three estimated losses.
-	if len(rv.losses) > 0 {
+	if len(rv.losses) > 0 && rv.losses[0].Seconds >= 0.15 {
 		out = append(out, m.bgSpaces(1), m.fg(m.th.Sub).Render("what cost you"))
 		for i, l := range rv.losses {
 			if i == 3 || l.Seconds < 0.15 {
@@ -117,6 +121,53 @@ func (m *Model) renderResult(rv resultView, after []string) string {
 		out = append(out, m.fg(m.th.Error).Render(m.status))
 	}
 	return m.block(out)
+}
+
+// bestsTable is Monkeytype's personal-best grid: wpm and accuracy for every time and words length,
+// under the current punctuation/numbers settings. The test just finished is highlighted, starred if new.
+func (m *Model) bestsTable() []string {
+	const w = 7
+	cur := map[string]string{"time": fmt.Sprint(m.cfg.Time), "words": fmt.Sprint(m.cfg.Words)}[m.cfg.Mode]
+	title := "personal bests"
+	if m.cfg.Punctuation {
+		title += " · punctuation"
+	}
+	if m.cfg.Numbers {
+		title += " · numbers"
+	}
+	head, wpm, acc := []string{m.sub(fmt.Sprintf("%-15s", title))}, []string{m.bgSpaces(15)}, []string{m.bgSpaces(15)}
+	for gi, g := range []struct {
+		mode, unit string
+		vals       []string
+	}{{"time", "s", []string{"15", "30", "60", "120"}}, {"words", "w", []string{"10", "25", "50", "100"}}} {
+		if gi > 0 {
+			head, wpm, acc = append(head, m.sub(" │ ")), append(wpm, m.sub(" │ ")), append(acc, m.sub(" │ "))
+		}
+		for _, v := range g.vals {
+			here := g.mode == m.cfg.Mode && v == cur
+			label := v + g.unit
+			if here && m.pb {
+				label = "★" + label
+			}
+			col := m.th.Sub
+			if here {
+				col = m.th.Caret
+			}
+			head = append(head, m.fg(col).Render(fmt.Sprintf("%*s", w, label)))
+			if t, ok := m.bests[g.mode][v]; ok {
+				wc := m.th.Text
+				if here {
+					wc = m.th.Caret
+				}
+				wpm = append(wpm, m.fg(wc).Render(fmt.Sprintf("%*.0f", w, t.WPM)))
+				acc = append(acc, m.sub(fmt.Sprintf("%*s", w, fmt.Sprintf("%.0f%%", t.Acc))))
+			} else {
+				wpm = append(wpm, m.sub(fmt.Sprintf("%*s", w, "–")))
+				acc = append(acc, m.bgSpaces(w))
+			}
+		}
+	}
+	return []string{strings.Join(head, ""), strings.Join(wpm, ""), strings.Join(acc, "")}
 }
 
 // quoteRecordLine summarises your record on one quote. earlier are the official attempts before this one;

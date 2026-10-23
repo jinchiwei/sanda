@@ -82,7 +82,8 @@ type Model struct {
 	pb       bool
 	shownAt  time.Time // when results appeared; keys are ignored briefly so a trailing keystroke can't skip them
 	prevPB   float64
-	quoteRec []store.Test // earlier official attempts at the current quote, before this one was saved
+	quoteRec []store.Test                     // earlier official attempts at the current quote, before this one was saved
+	bests    map[string]map[string]store.Test // time/words personal bests by mode, then mode value, after this test
 	outcome  []train.Outcome
 
 	// train / pace
@@ -377,6 +378,13 @@ func (m *Model) checkDone() {
 		m.status = "could not save: " + err.Error()
 	}
 	m.losses = analysis.Breakdown(m.sess.Events, m.words, m.stats.Duration)
+	m.bests = nil
+	if m.activity == ActTest && (m.cfg.Mode == "time" || m.cfg.Mode == "words") {
+		m.bests = map[string]map[string]store.Test{}
+		for _, mode := range []string{"time", "words"} {
+			m.bests[mode], _ = m.db.Bests(mode, m.cfg.Punctuation, m.cfg.Numbers)
+		}
+	}
 	m.outcome = nil
 	if m.activity == ActTrain {
 		m.reloadModel()
@@ -424,6 +432,7 @@ func (m *Model) retake() {
 	m.pb = false
 	m.prevPB = 0
 	m.quoteRec = nil
+	m.bests = nil
 	m.paceNote = ""
 	m.status = ""
 	m.screen = scrTyping

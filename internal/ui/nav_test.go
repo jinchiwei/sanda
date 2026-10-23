@@ -2,7 +2,9 @@ package ui
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -135,5 +137,38 @@ func TestHistoryOpensAndReturns(t *testing.T) {
 	press(m, "enter", "esc") // no tests: enter does nothing, esc returns
 	if m.screen != scrMenu {
 		t.Fatalf("esc in history should return to the menu, got %v", m.screen)
+	}
+}
+
+// typeOut types every word of the current test, ending it. Rounds under a second are discarded,
+// so it pauses before the last word.
+func typeOut(m *Model) {
+	for i, w := range m.words {
+		if i == len(m.words)-1 {
+			time.Sleep(1100 * time.Millisecond)
+		}
+		press(m, strings.Split(w, "")...)
+		if i < len(m.words)-1 {
+			m.Update(tea.KeyMsg{Type: tea.KeySpace, Runes: []rune{' '}})
+		}
+	}
+}
+
+func TestResultsShowPersonalBests(t *testing.T) {
+	m := newTestModel(t)
+	m.cfg.Mode, m.cfg.Words = "words", 10
+	m.newTest()
+	typeOut(m)
+	if m.screen != scrResult {
+		t.Fatalf("typing every word should finish the test, got %v", m.screen)
+	}
+	if _, ok := m.bests["words"]["10"]; !ok {
+		t.Fatalf("the finished words 10 test should be its personal best: %+v", m.bests)
+	}
+	view := m.View()
+	for _, want := range []string{"personal bests", "★10w", "15s", "100w"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("results screen lacks %q", want)
+		}
 	}
 }
