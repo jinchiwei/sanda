@@ -12,6 +12,7 @@ import (
 	"github.com/jinchiwei/sanda/internal/data"
 	"github.com/jinchiwei/sanda/internal/engine"
 	"github.com/jinchiwei/sanda/internal/store"
+	"github.com/jinchiwei/sanda/internal/train"
 )
 
 // History lists finished tests, newest first; enter reopens a test's full results from its saved keystrokes.
@@ -44,7 +45,12 @@ func histLabel(t store.Test) string {
 	l := t.Mode + " " + t.ModeValue
 	switch t.Kind {
 	case store.KindTrain:
-		l = "train drill"
+		l = "train drill" // rounds from before train had formats
+		for _, f := range []train.Format{train.Plain, train.Prose} {
+			if t.Mode == f.DrillMode() {
+				l = "train " + f.Name()
+			}
+		}
 	case store.KindPace:
 		l = "pace " + t.Mode
 	}

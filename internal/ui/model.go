@@ -180,13 +180,24 @@ func (m *Model) newTest() {
 	m.screen = scrTyping
 }
 
+// trainFormat is the kind of text train drills: the format of the tests you're currently set up for.
+func (m *Model) trainFormat() train.Format { return train.FormatFor(m.cfg.Mode, m.cfg.Punctuation) }
+
+// reloadModel rebuilds the weakness model from the current train format's rounds only.
 func (m *Model) reloadModel() {
 	rounds, err := m.db.Events(time.Now().AddDate(0, 0, -90))
 	if err != nil {
 		m.status = "could not read history: " + err.Error()
 		return
 	}
-	m.model = analysis.BuildModel(rounds)
+	f := m.trainFormat()
+	var mine []store.TestEvents
+	for _, r := range rounds {
+		if f.Counts(r.Test) {
+			mine = append(mine, r)
+		}
+	}
+	m.model = analysis.BuildModel(mine)
 }
 
 func (m *Model) startTrain() {
@@ -194,7 +205,7 @@ func (m *Model) startTrain() {
 	m.activity = ActTrain
 	m.reloadModel()
 	sched, _ := m.db.Schedule()
-	m.focus = train.PickFocus(m.model, sched, time.Now(), 3)
+	m.focus = train.PickFocus(m.model, sched, time.Now(), 3, m.trainFormat())
 	if len(m.focus) == 0 {
 		for _, u := range analysis.TopCorpusUnits(3) {
 			m.focus = append(m.focus, train.Focus{Unit: u, Probe: true})
@@ -348,7 +359,8 @@ func (m *Model) checkDone() {
 			m.quoteRec, _ = m.db.QuoteAttempts(t.QuoteID)
 		}
 	case ActTrain:
-		t.Kind, t.Mode, t.ModeValue = store.KindTrain, "drill", strconv.Itoa(len(m.words))
+		t.Kind, t.Mode, t.ModeValue = store.KindTrain, m.trainFormat().DrillMode(), strconv.Itoa(len(m.words))
+		t.Punctuation, t.Numbers = false, false
 		var units []string
 		for _, f := range m.focus {
 			units = append(units, f.Unit)
@@ -368,7 +380,7 @@ func (m *Model) checkDone() {
 	m.outcome = nil
 	if m.activity == ActTrain {
 		m.reloadModel()
-		m.outcome = train.Review(m.db, m.focus, m.sess.Events, m.model.Baseline, time.Now())
+		m.outcome = train.Review(m.db, m.focus, m.sess.Events, m.model.Baseline, time.Now(), m.trainFormat())
 	}
 	if m.activity == ActPace {
 		m.paceNote = m.paceVerdict()

@@ -6,12 +6,12 @@ Typing tests measure speed but don't train it, so practice on them tends to plat
 
 - **Tests** like Monkeytype: time (15/30/60/120), words (10/25/50/100), quotes (short/medium/long/thicc, with the quote's source on the results screen), punctuation and numbers.
 - **"What cost you"** on every result, in seconds. It covers Shift and capitals, punctuation, numbers, word starts, rarer words, corrections, slowing down, and your slowest letter pair.
-- **Train**: adaptive drills built from real words that are dense in your costliest transitions. A transition leaves the list once it's as fast as your baseline, then comes back for review after 1, 2, 4, 8… days.
+- **Train**: adaptive drills built from real words that are dense in your costliest transitions. Train follows the test format you're set to: for time and words tests it drills lowercase words only and learns only from those tests; for quotes (or punctuation on) it learns from quotes and also drills capitals and punctuation. Each transition is held to *par*, your median for that kind of transition in that format: word starts against word starts, letter pairs against letter pairs, a capital against the same lowercase move plus 40% for Shift. A transition leaves the list once it's within 5% of par, then comes back for review after 1, 2, 4, 8… days; a miss rests it 20 minutes so other weak spots get their turn. Capitals are drilled in rounds of their own, as short sentences, because they slow everything typed around them.
 - **Pace**: overspeed bursts with a ghost cursor running at your recent median × 1.07, alternating with clean control rounds.
-- **Progress**: the gap between your word-test and quote speed per week, transition types against your baseline, and your top weak spots with daily trends.
+- **Progress**: the gap between your word-test and quote speed per week, transition types against your baseline, and your top weak spots (for the format you're set to) with their par and daily trends.
 - **Themes**: sanda's `dreamtheme` and `andromeda`, plus all of Monkeytype's themes, with live preview. Add your own as TOML.
 
-Train and pace rounds feed the weakness model but never your official WPM history.
+Train rounds feed the weakness model but never your official WPM history.
 
 ## Install
 

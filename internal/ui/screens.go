@@ -407,8 +407,9 @@ func (m *Model) buildProgress() string {
 	}
 
 	sched, _ := m.db.Schedule()
-	out = append(out, m.bgSpaces(1), m.fg(m.th.Sub).Render("top weak spots · estimated time lost per 1000 characters of typical text"))
-	out = append(out, m.sub(fmt.Sprintf("  %-6s %8s %6s %6s %7s  %-14s %s", "pair", "median", "err", "seen", "cost", "daily (↓ good)", "review")))
+	out = append(out, m.bgSpaces(1), m.fg(m.th.Sub).Render("top weak spots for "+m.trainFormat().Name()+" tests (what train drills now) · estimated time lost per 1000 characters"))
+	out = append(out, m.sub("  each is compared with par: your median for that kind of transition (word starts, capitals, …)"))
+	out = append(out, m.sub(fmt.Sprintf("  %-6s %8s %6s %6s %6s %7s  %-14s %s", "pair", "median", "par", "err", "seen", "cost", "daily (↓ good)", "review")))
 	now := time.Now()
 	for i, u := range md.Ranked {
 		if i == 10 {
@@ -422,10 +423,10 @@ func (m *Model) buildProgress() string {
 			daily = daily[len(daily)-14:]
 		}
 		rev := "due"
-		if s, ok := sched[u.Unit]; ok && s.Due.After(now) {
-			rev = "in " + days(s.Due.Sub(now))
+		if s, ok := sched[m.trainFormat().SchedKey(u.Unit)]; ok && s.Due.After(now) {
+			rev = "in " + until(s.Due.Sub(now))
 		}
-		row := fmt.Sprintf("  %-6s %6dms %5.0f%% %6d %6.2fs  ", analysis.Show(u.Unit), u.Median.Milliseconds(), u.ErrRate*100, u.Count, u.Cost)
+		row := fmt.Sprintf("  %-6s %6dms %4dms %5.0f%% %6d %6.2fs  ", analysis.Show(u.Unit), u.Median.Milliseconds(), u.Target.Milliseconds(), u.ErrRate*100, u.Count, u.Cost)
 		out = append(out, m.text(row)+m.fg(m.th.Main).Render(fmt.Sprintf("%-14s", spark(daily)))+m.sub(" "+rev))
 	}
 	grad := 0

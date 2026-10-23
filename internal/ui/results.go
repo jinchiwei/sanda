@@ -12,6 +12,7 @@ import (
 	"github.com/jinchiwei/sanda/internal/data"
 	"github.com/jinchiwei/sanda/internal/engine"
 	"github.com/jinchiwei/sanda/internal/store"
+	"github.com/jinchiwei/sanda/internal/train"
 )
 
 // resultView is everything the results screen shows, for the test just finished or one from history.
@@ -170,7 +171,7 @@ func (m *Model) testLabel() string {
 }
 
 func (m *Model) trainOutcome(tw int) []string {
-	out := []string{m.sub(fmt.Sprintf("%-8s %9s %9s %9s   %s", "focus", "this", "before", "baseline", "result"))}
+	out := []string{m.sub("training for " + m.trainFormat().Name() + " tests"), m.sub(fmt.Sprintf("%-8s %9s %9s %9s   %s", "focus", "this", "before", "par", "result"))}
 	ms := func(d time.Duration) string {
 		if d == 0 {
 			return "–"
@@ -185,9 +186,9 @@ func (m *Model) trainOutcome(tw int) []string {
 		case o.Passed:
 			res = m.main(fmt.Sprintf("✓ fast enough, next review in %s", days(time.Until(o.NextDue))))
 		default:
-			res = m.fg(m.th.Error).Render("✗ still slow, keep drilling")
+			res = m.fg(m.th.Error).Render(fmt.Sprintf("✗ still slow, back in %d min", int(train.Retry.Minutes())))
 		}
-		row := fmt.Sprintf("%-8s %9s %9s %9s   ", analysis.Show(o.Unit), ms(o.Round), ms(o.Before), ms(o.Baseline))
+		row := fmt.Sprintf("%-8s %9s %9s %9s   ", analysis.Show(o.Unit), ms(o.Round), ms(o.Before), ms(o.Target))
 		out = append(out, m.text(row)+res)
 	}
 	return out
@@ -199,6 +200,17 @@ func days(d time.Duration) string {
 		return "1 day"
 	}
 	return fmt.Sprintf("%d days", n)
+}
+
+// until is a short "in …" for review times, which run from minutes (a miss) to weeks (passes).
+func until(d time.Duration) string {
+	switch {
+	case d < time.Hour:
+		return fmt.Sprintf("%d min", max(1, int(d.Minutes()+0.5)))
+	case d < 24*time.Hour:
+		return fmt.Sprintf("%d h", int(d.Hours()+0.5))
+	}
+	return days(d)
 }
 
 // wrapText wraps plain text to width.

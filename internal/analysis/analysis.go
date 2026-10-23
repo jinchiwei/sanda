@@ -224,7 +224,9 @@ type UnitStat struct {
 	Days      int
 	Daily     []Day // oldest first
 	Freq      float64
-	Cost      float64 // estimated seconds lost per 1000 characters of typical text
+	Class     Class
+	Target    time.Duration // par: your median for this kind of transition
+	Cost      float64       // estimated seconds lost per 1000 characters of typical text
 	Uncertain bool
 }
 
@@ -245,13 +247,27 @@ type Model struct {
 	Units    map[string]*UnitStat
 	Ranked   []*UnitStat // by cost, highest first, certain units only
 	Classes  []ClassStat
+	ClassMed map[Class]time.Duration
+	ClassErr map[Class]float64
 	Samples  int
 }
 
 const (
 	recentSamples = 60
 	minSamples    = 6
+	// A unit is a weak spot only when it's this much slower than par, or makes this many more
+	// errors than its kind of transition does. Review passes it on the same terms.
+	slowMargin = 0.05
+	errMargin  = 0.01
+	// A capital is held to the same move in lowercase plus this much for Shift. Judged against
+	// other capitals instead, the commonest one (I) looks fine while costing you on every "I".
+	shiftAllowance = 0.4
 )
+
+// Par is what a unit is held to: its class median plus the margin.
+func Par(target time.Duration) time.Duration {
+	return target + time.Duration(float64(target)*slowMargin)
+}
 
 // BuildModel aggregates every round's keystrokes (official, train and pace all count here).
 func BuildModel(rounds []store.TestEvents) Model {
@@ -272,6 +288,7 @@ func BuildModel(rounds []store.TestEvents) Model {
 	}
 	var all []time.Duration
 	classes := map[Class][]time.Duration{}
+	classMiss := map[Class]int{}
 	for _, r := range rounds {
 		day := r.Test.StartedAt.Local().Format("2006-01-02")
 		clean, misses := Transitions(r.Events)
@@ -288,16 +305,34 @@ func BuildModel(rounds []store.TestEvents) Model {
 		}
 		for _, m := range misses {
 			get(m.Unit()).errs++
+			classMiss[Classify(m.From, m.To)]++
 		}
 	}
-	m := Model{Units: map[string]*UnitStat{}, Samples: len(all)}
+	m := Model{Units: map[string]*UnitStat{}, ClassMed: map[Class]time.Duration{}, ClassErr: map[Class]float64{}, Samples: len(all)}
 	m.Baseline = median(all)
+	// Each unit is judged against its own kind of transition: a word start always takes longer
+	// than a letter pair inside a word, and a capital longer still, so comparing them with the
+	// overall median would flag the commonest word starts and capitals forever.
+	for c, v := range classes {
+		m.ClassMed[c] = median(v)
+		m.ClassErr[c] = float64(classMiss[c]) / float64(len(v)+classMiss[c])
+	}
 	for u, a := range units {
 		recent := a.ikis
 		if len(recent) > recentSamples {
 			recent = recent[len(recent)-recentSamples:]
 		}
-		s := &UnitStat{Unit: u, Count: len(a.ikis), Median: median(recent), Errors: a.errs, Days: len(a.days), Freq: Freq(u)}
+		r := []rune(u)
+		c := Classify(r[0], r[1])
+		s := &UnitStat{Unit: u, Count: len(a.ikis), Median: median(recent), Errors: a.errs, Days: len(a.days), Freq: Freq(u), Class: c, Target: m.ClassMed[c]}
+		if lc := unicode.ToLower(r[1]); c == ClassShift && lc != r[1] {
+			if base := m.ClassMed[Classify(r[0], lc)]; base > 0 {
+				s.Target = min(s.Target, base+time.Duration(float64(base)*shiftAllowance))
+			}
+		}
+		if s.Target == 0 {
+			s.Target = m.Baseline
+		}
 		if tries := len(a.ikis) + a.errs; tries > 0 {
 			s.ErrRate = float64(a.errs) / float64(tries)
 		}
@@ -306,11 +341,15 @@ func BuildModel(rounds []store.TestEvents) Model {
 		}
 		s.Uncertain = s.Count < minSamples
 		slow := 0.0
-		if s.Median > m.Baseline {
-			slow = (s.Median - m.Baseline).Seconds()
+		if s.Median > Par(s.Target) {
+			slow = (s.Median - s.Target).Seconds()
+		}
+		errs := 0.0
+		if extra := s.ErrRate - m.ClassErr[c]; extra > errMargin {
+			errs = extra
 		}
 		// An error costs roughly four keystrokes: the wrong key, backspace, the retype and the hesitation.
-		s.Cost = s.Freq * (slow + s.ErrRate*4*m.Baseline.Seconds())
+		s.Cost = s.Freq * (slow + errs*4*s.Target.Seconds())
 		m.Units[u] = s
 		if !s.Uncertain && s.Cost > 0 {
 			m.Ranked = append(m.Ranked, s)

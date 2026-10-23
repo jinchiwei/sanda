@@ -81,3 +81,46 @@ func TestModelRanksSlowPair(t *testing.T) {
 		t.Fatalf("top weakness = %q, want ck", got)
 	}
 }
+
+// Word starts are slower than letter pairs for everyone. One at par with the other word starts
+// is not a weak spot, however common it is.
+func TestWordStartJudgedAgainstWordStarts(t *testing.T) {
+	text := strings.Repeat("to the on of to it on at ", 20)
+	ev := typeText(text, func(a, b rune) time.Duration {
+		if a == ' ' {
+			return 150 * time.Millisecond
+		}
+		return 70 * time.Millisecond
+	})
+	m := BuildModel([]store.TestEvents{{Test: store.Test{StartedAt: time.Now()}, Events: ev}})
+	for _, u := range m.Ranked {
+		if u.Class == ClassWordStart {
+			t.Errorf("%q ranked weak at %v, par %v: every word start is that speed", u.Unit, u.Median, u.Target)
+		}
+	}
+}
+
+// A capital is held to its lowercase word start plus a Shift allowance, so the commonest capital
+// counts as weak even when it's the fastest capital you have.
+func TestCapitalJudgedAgainstLowercase(t *testing.T) {
+	text := strings.Repeat("I is in it A an at ", 20)
+	ev := typeText(text, func(a, b rune) time.Duration {
+		switch {
+		case a == ' ' && b == 'I':
+			return 160 * time.Millisecond
+		case a == ' ' && b == 'A':
+			return 250 * time.Millisecond
+		case a == ' ':
+			return 90 * time.Millisecond
+		}
+		return 70 * time.Millisecond
+	})
+	m := BuildModel([]store.TestEvents{{Test: store.Test{StartedAt: time.Now()}, Events: ev}})
+	u := m.Units[" I"]
+	if u == nil || u.Cost <= 0 {
+		t.Fatalf(`" I" at 160ms vs lowercase word starts at 90ms should be weak, got %+v`, u)
+	}
+	if want := 90*time.Millisecond + 36*time.Millisecond; u.Target != want {
+		t.Errorf(`" I" par = %v, want %v (lowercase par + 40%%)`, u.Target, want)
+	}
+}
