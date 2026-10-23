@@ -19,19 +19,54 @@ type cell struct {
 	mistyped rune // actual input, displayed below an incorrect expected character
 }
 
-// wrap assigns each word to a line given the text width; returns the first word index of each line.
-func wrap(words [][]rune, width int) []int {
-	starts := []int{0}
-	col := 0
-	for i, w := range words {
-		l := len(w)
-		if col > 0 && col+l > width {
-			starts = append(starts, i)
-			col = 0
-		}
-		col += l + 1
+// typingRows wraps the cells that will actually be drawn, including extra
+// input. Long words continue on another row instead of being clipped. The
+// current row follows the caret, including a caret just beyond a full line.
+func (m *Model) typingRows(width, ghost int) ([][]cell, int) {
+	s := m.sess
+	rows := [][]cell{nil}
+	col, offset, current := 0, 0, 0
+	newRow := func() {
+		rows = append(rows, nil)
+		col = 0
 	}
-	return starts
+	for wi, word := range s.Words {
+		cells := m.wordCells(wi, offset, ghost)
+		offset += len(word) + 1
+		caret := -1
+		if wi == s.Cur && !s.Finished() {
+			caret = len(s.Input[wi])
+		}
+		// Ignore the separator when deciding whether a word fits, unless it
+		// holds the caret. Ordinary spaces may fall outside the right edge.
+		wordWidth := 0
+		for j, c := range cells {
+			if j < len(cells)-1 || j == caret {
+				wordWidth += lipgloss.Width(string(c.r))
+			}
+		}
+		if col > 0 && col+wordWidth > width {
+			newRow()
+		}
+		if wi == s.Cur {
+			current = len(rows) - 1
+		}
+		for j, c := range cells {
+			cw := lipgloss.Width(string(c.r))
+			if col+cw > width {
+				if j == len(cells)-1 && j != caret {
+					break
+				}
+				newRow()
+			}
+			rows[len(rows)-1] = append(rows[len(rows)-1], c)
+			col += cw
+			if j == caret {
+				current = len(rows) - 1
+			}
+		}
+	}
+	return rows, current
 }
 
 func (m *Model) viewTyping() string {
@@ -39,42 +74,15 @@ func (m *Model) viewTyping() string {
 	tw := m.textWidth()
 	now := time.Now()
 
-	// Words longer than the line are shown up to the width.
-	starts := wrap(s.Words, tw)
-	lineOf := func(word int) int {
-		l := 0
-		for i, st := range starts {
-			if st <= word {
-				l = i
-			}
-		}
-		return l
-	}
-	cur := lineOf(s.Cur)
-	first := max(cur-1, 0)
-
 	ghost := -1
 	if m.activity == ActPace && m.phase == phaseBurst && s.Started() {
 		ghost = int(m.target * 5 / 60 * s.Elapsed(now).Seconds())
 	}
-
+	rows, current := m.typingRows(tw, ghost)
+	first := max(current-1, 0)
 	var lines []string
-	offset := 0 // absolute character offset of each word, for the ghost
-	wordOffset := make([]int, len(s.Words))
-	for i := range s.Words {
-		wordOffset[i] = offset
-		offset += len(s.Words[i]) + 1
-	}
-	for li := first; li < first+3 && li < len(starts); li++ {
-		end := len(s.Words)
-		if li+1 < len(starts) {
-			end = starts[li+1]
-		}
-		var cells []cell
-		for wi := starts[li]; wi < end; wi++ {
-			cells = append(cells, m.wordCells(wi, wordOffset[wi], ghost)...)
-		}
-		lines = append(lines, m.renderCells(cells, tw), m.renderMistypes(cells, tw))
+	for li := first; li < first+3 && li < len(rows); li++ {
+		lines = append(lines, m.renderCells(rows[li], tw), m.renderMistypes(rows[li], tw))
 	}
 	for len(lines) < 6 {
 		lines = append(lines, m.bgSpaces(tw))
@@ -161,8 +169,13 @@ func (m *Model) renderMistypes(cells []cell, width int) string {
 
 // renderCells groups runs of identical style so lipgloss isn't called per character.
 func (m *Model) renderCells(cells []cell, width int) string {
-	if len(cells) > width {
-		cells = cells[:width]
+	columns := 0
+	for i, c := range cells {
+		columns += lipgloss.Width(string(c.r))
+		if columns > width {
+			cells = cells[:i]
+			break
+		}
 	}
 	var sb strings.Builder
 	for i := 0; i < len(cells); {
