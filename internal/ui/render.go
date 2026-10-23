@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/lipgloss"
 
@@ -55,10 +56,19 @@ func (m *Model) block(lines []string) string {
 	return strings.Join(lines, "\n")
 }
 
+// logoOpacity uses the normal UI tick; input never waits for the animation.
+func (m *Model) logoOpacity() float64 {
+	if m.cfg.KeepLogo || m.screen != scrTyping || !m.typingStarted() {
+		return 1
+	}
+	return max(0, 1-float64(m.logoFadeElapsed)/float64(150*time.Millisecond))
+}
+
 // logoLines shades the brush-textured logo from standard theme roles:
 // caret for the first character, main for the second, and typed for highlights.
 func (m *Model) logoLines(pixels []string) []string {
-	key := m.th.Name + m.th.Bg + fmt.Sprint(len(pixels))
+	opacity := m.logoOpacity()
+	key := fmt.Sprintf("%s:%s:%d:%.3f", m.th.Name, m.th.Bg, len(pixels), opacity)
 	if m.logoKey == key {
 		return m.logoCache
 	}
@@ -70,6 +80,15 @@ func (m *Model) logoLines(pixels []string) []string {
 	white := [3]float64{255, 255, 255}
 	gold := mix(warm, white, 0.15)
 	shades := map[byte]string{6: mix(warm, rgb(m.th.Sub), 0.2), 7: mix(warm, warm, 0), 8: gold, 9: mix(rgb(gold), white, 0.45)}
+	// Transparent terminal backgrounds have no RGB value; use black as the
+	// dimming target, while still leaving all empty cells transparent.
+	background := rgb(m.th.BgHex())
+	fade := func(hex string) string {
+		if opacity == 1 {
+			return hex
+		}
+		return mix(background, rgb(hex), opacity)
+	}
 	color := func(c byte) string {
 		var lvl byte
 		var base [3]float64
@@ -82,9 +101,9 @@ func (m *Model) logoLines(pixels []string) []string {
 			return ""
 		}
 		if sh, ok := shades[lvl]; ok {
-			return sh
+			return fade(sh)
 		}
-		return mix(base, warm, float64(lvl)/9)
+		return fade(mix(base, warm, float64(lvl)/9))
 	}
 	at := func(y, x int) byte {
 		if y < len(pixels) && x < len(pixels[y]) {

@@ -104,14 +104,16 @@ type Model struct {
 	themeFilter string
 	themeBefore string
 
-	progress   string
-	histTests  []store.Test
-	histIdx    int
-	histAll    bool
-	histDetail bool
-	logoKey    string // theme the cached logo was rendered for
-	logoCache  []string
-	progressW  int // terminal width the progress screen was built for
+	progress        string
+	histTests       []store.Test
+	histIdx         int
+	histAll         bool
+	histDetail      bool
+	logoKey         string // theme the cached logo was rendered for
+	logoCache       []string
+	logoFadeStart   time.Time
+	logoFadeElapsed time.Duration
+	progressW       int // terminal width the progress screen was built for
 }
 
 // New creates the app starting in the given activity ("progress" and "themes" open those screens).
@@ -258,6 +260,20 @@ func (m *Model) restart() {
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	now := time.Now()
+	if t, ok := msg.(tickMsg); ok {
+		now = time.Time(t)
+	}
+	defer func() {
+		if m.screen != scrTyping || !m.typingStarted() {
+			m.logoFadeStart, m.logoFadeElapsed = time.Time{}, 0
+		} else {
+			if m.logoFadeStart.IsZero() {
+				m.logoFadeStart = now
+			}
+			m.logoFadeElapsed = max(0, now.Sub(m.logoFadeStart))
+		}
+	}()
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.w, m.h = msg.Width, msg.Height
@@ -501,7 +517,7 @@ func (m *Model) View() string {
 	h := m.h - 1
 	content := m.place(m.w, h, body)
 	if m.screen == scrTyping {
-		content = m.withLogo(body, h, !focus || m.cfg.KeepLogo)
+		content = m.withLogo(body, h, m.logoOpacity() > 0)
 	}
 	// Use one row of bottom padding to lower the content without moving the footer.
 	// Keep the existing layout when the terminal is too short to spare that row.
@@ -513,7 +529,7 @@ func (m *Model) View() string {
 }
 
 // withLogo keeps the typing block exactly centred and puts the big 散打 in the space above it
-// (hidden while typing, and skipped when it doesn't fit).
+// (quickly dimmed away on focus when disabled, and skipped when it doesn't fit).
 func (m *Model) withLogo(body string, h int, show bool) string {
 	bh := lipgloss.Height(body)
 	top := (h - bh) / 2

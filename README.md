@@ -78,7 +78,7 @@ Options (esc → options, or in the config):
 | live wpm (`live_wpm`) | on | running WPM next to the timer |
 | free backspace (`free_backspace`) | on | backspace into any earlier word, not only wrong ones (Monkeytype's "freedom mode") |
 | terminal bg (`terminal_background`) | off | use your terminal's background with any theme (dreamtheme uses this by default) |
-| keep logo (`keep_logo`) | on | keep the 散打 logo on screen while typing (off = it hides, like Monkeytype's focus mode) |
+| keep logo (`keep_logo`) | on | keep the 散打 logo on screen while typing (off = it dims away in 150 ms when typing starts) |
 
 In the menu, **j/k** (or ↓/↑) move between rows and **h/l** (or ←/→) move within a row.
 
